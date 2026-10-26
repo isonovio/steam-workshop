@@ -135,11 +135,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "steam-client"
+version = "0.1.0"
+dependencies = [
+ "steamworks-sys",
+]
+
+[[package]]
 name = "steam-workshop"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "steam-client",
 ]
+
+[[package]]
+name = "steamworks-sys"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae139f051204a4af015d4f0ed3a1f7a51020d03a44c7cf249168c543d88131e9"
 
 [[package]]
 name = "strsim"

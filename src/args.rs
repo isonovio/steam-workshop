@@ -12,6 +12,8 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Command {
+    #[command(about = "Check whether Steam is running")]
+    ProbeSteam,
     #[command(about = "Inspect a Workshop item")]
     Inspect {
         app_id: NonZeroU32,

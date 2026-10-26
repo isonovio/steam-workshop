@@ -3,5 +3,13 @@ name = "steam-workshop"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = ["crates/steam-client"]
+resolver = "3"
+
+[lints.rust]
+unsafe_code = "forbid"
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+steam-client = { path = "crates/steam-client" }
