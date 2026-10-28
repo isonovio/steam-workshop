@@ -42,6 +42,11 @@ impl Session {
         Ok(Self { client, _guard })
     }
 
+    pub(crate) fn pipe(&self) -> steamworks::sys::HSteamPipe {
+        // The private Client keeps the initialized Steam session alive.
+        unsafe { steamworks::sys::SteamAPI_GetHSteamPipe() }
+    }
+
     pub fn user_id(&self) -> u64 {
         self.client.user().steam_id().raw()
     }
