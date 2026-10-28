@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use steam_client::{Session, SessionError};
+use super::{Session, SessionError};
 
 #[test]
 #[ignore = "requires Steam running with SteamAppId and SteamGameId set to 286160"]

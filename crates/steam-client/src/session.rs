@@ -18,7 +18,7 @@ pub enum SessionError {
     Unavailable,
     #[error("Steam initialization failed: {0}")]
     Initialization(#[from] steamworks::SteamAPIInitError),
-    #[error("Steam initialized for app {actual}, expected {expected}")]
+    #[error("Steam initialization failed: requested app {expected}, got {actual}")]
     AppMismatch { expected: u32, actual: u32 },
     #[error("Steam user is not logged in")]
     NotLoggedIn,
@@ -26,7 +26,7 @@ pub enum SessionError {
 
 impl Session {
     /// The process must be launched with SteamAppId and SteamGameId set to app_id.
-    pub fn connect(app_id: NonZeroU32) -> Result<Self, SessionError> {
+    pub(crate) fn connect(app_id: NonZeroU32) -> Result<Self, SessionError> {
         let _guard = SESSION.try_lock().map_err(|_| SessionError::Unavailable)?;
         let client = Client::init()?;
         let client_app_id = client.utils().app_id().0;
@@ -56,3 +56,7 @@ pub fn is_running() -> bool {
     // This status query requires no initialized session or pointer arguments.
     unsafe { steamworks::sys::SteamAPI_IsSteamRunning() }
 }
+
+#[cfg(test)]
+#[path = "tests/session/tests.rs"]
+mod tests;
