@@ -6,4 +6,4 @@ An adaptation of [KP-Steam](https://github.com/KillahPotatoes/KP-Steam)
 
 ## Tech Stack
 
-- `steamworks-sys`: native bindings and Valve's library
+- `steamworks::sys`: native bindings and Valve's library
