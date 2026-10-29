@@ -1,22 +1,22 @@
-use std::ffi::CString;
-
-use steamworks::{SteamError, sys};
 use thiserror::Error;
 
-use crate::{CallError, MAX_UPLOAD_SIZE, Session};
+use crate::{CallError, CloudFile, CreateFileError, Session};
 
 use crate::utils::random_u128;
 
+pub enum CloudOperation<T> {
+    Complete(Result<T, CallError>),
+    Uncertain(CallError),
+}
+
 #[derive(Debug, Error)]
 pub enum CloudError {
-    #[error("Input exceeds the {MAX_UPLOAD_SIZE}-byte upload limit")]
-    TooLarge,
     #[error("Unable to generate temporary filename: {0}")]
     Random(String),
     #[error("Steam Cloud interface is unavailable")]
     Unavailable,
-    #[error("Temporary Cloud filename already exists")]
-    NameCollision,
+    #[error(transparent)]
+    Create(#[from] CreateFileError),
     #[error(transparent)]
     Call(#[from] CallError),
     #[error("Failed to delete temporary Cloud file {filename}; operation error: {operation:?}")]
@@ -25,52 +25,41 @@ pub enum CloudError {
         #[source]
         operation: Option<CallError>,
     },
-    #[error("Steam call timed out; temporary Cloud file retained: {filename}")]
-    Uncertain { filename: String },
+    #[error("Remote outcome is unknown; temporary Cloud file retained: {filename}: {source}")]
+    Uncertain {
+        filename: String,
+        #[source]
+        source: CallError,
+    },
+}
+
+struct TemporaryCloudFile<'session> {
+    file: CloudFile<'session>,
 }
 
 impl Session {
-    /// Stages bytes for one operation, then deletes the staging file on completion.
-    /// A timeout retains the file because the remote operation may still need it.
     pub fn with_temporary_cloud_file<T>(
         &mut self,
         bytes: &[u8],
-        operation: impl FnOnce(&mut Self, &str) -> Result<T, CallError>,
+        operation: impl FnOnce(&mut Self, &str) -> CloudOperation<T>,
     ) -> Result<T, CloudError> {
-        if bytes.len() > MAX_UPLOAD_SIZE {
-            return Err(CloudError::TooLarge);
-        }
-        let filename = temporary_filename()?;
-        let name = CString::new(filename.as_str()).unwrap();
-        // The exclusive session keeps this interface alive through operation and cleanup.
-        let storage = unsafe { sys::SteamAPI_SteamRemoteStorage_v016() };
-        if storage.is_null() {
-            return Err(CloudError::Unavailable);
-        }
-        let exists =
-            unsafe { sys::SteamAPI_ISteamRemoteStorage_FileExists(storage, name.as_ptr()) };
-        if exists {
-            return Err(CloudError::NameCollision);
-        }
-        // The generated name is NUL-terminated and the checked byte count fits i32.
-        let written = unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_FileWrite(
-                storage,
-                name.as_ptr(),
-                bytes.as_ptr().cast(),
-                bytes.len() as i32,
-            )
-        };
-        let result = match written {
-            true => operation(self, &filename),
-            false => Err(CallError::Steam(SteamError::IOFailure)),
-        };
-        finish(result, filename, || {
-            // FileWrite can fail before creating a file; absence already satisfies cleanup.
-            unsafe {
-                !sys::SteamAPI_ISteamRemoteStorage_FileExists(storage, name.as_ptr())
-                    || sys::SteamAPI_ISteamRemoteStorage_FileDelete(storage, name.as_ptr())
-            }
+        let mut temporary = TemporaryCloudFile::new(self, bytes)?;
+        let outcome = temporary.file.with_session(operation);
+        temporary.finish(outcome)
+    }
+}
+
+impl<'session> TemporaryCloudFile<'session> {
+    fn new(session: &'session mut Session, bytes: &[u8]) -> Result<Self, CloudError> {
+        let name = temporary_filename()?;
+        let storage = session.remote_storage().ok_or(CloudError::Unavailable)?;
+        let file = storage.write_new(&name, bytes)?;
+        Ok(Self { file })
+    }
+
+    fn finish<T>(self, outcome: CloudOperation<T>) -> Result<T, CloudError> {
+        finish(outcome, self.file.name().to_owned(), || {
+            self.file.delete().is_ok()
         })
     }
 }
@@ -81,13 +70,16 @@ fn temporary_filename() -> Result<String, CloudError> {
 }
 
 fn finish<T>(
-    result: Result<T, CallError>,
+    outcome: CloudOperation<T>,
     filename: String,
     cleanup: impl FnOnce() -> bool,
 ) -> Result<T, CloudError> {
-    if matches!(result, Err(CallError::Timeout)) {
-        return Err(CloudError::Uncertain { filename });
-    }
+    let result = match outcome {
+        CloudOperation::Complete(result) => result,
+        CloudOperation::Uncertain(source) => {
+            return Err(CloudError::Uncertain { filename, source });
+        }
+    };
     if !cleanup() {
         return Err(CloudError::Cleanup {
             filename,

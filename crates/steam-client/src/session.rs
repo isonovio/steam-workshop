@@ -4,6 +4,8 @@ use std::sync::{Mutex, MutexGuard};
 use steamworks::Client;
 use thiserror::Error;
 
+use crate::features::RemoteStorage;
+
 static SESSION: Mutex<()> = Mutex::new(());
 
 pub struct Session {
@@ -40,6 +42,10 @@ impl Session {
             return Err(SessionError::NotLoggedIn);
         }
         Ok(Self { client, _guard })
+    }
+
+    pub fn remote_storage(&mut self) -> Option<RemoteStorage<'_>> {
+        RemoteStorage::new(self)
     }
 
     pub(crate) fn pipe(&self) -> steamworks::sys::HSteamPipe {
