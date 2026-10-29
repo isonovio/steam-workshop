@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+getrandom = "0.4"
 steamworks = { version = "0.13.1", features = ["raw-bindings"] }
 thiserror = "2"
 
