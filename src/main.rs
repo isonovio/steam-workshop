@@ -11,17 +11,18 @@ use crate::commands as cmd;
 
 fn main() -> ExitCode {
     let args = Args::parse();
-    let command = match args.command {
-        Command::ProbeSteam => return commands::probe_steam(),
+    match args.command {
+        Command::ProbeSteam => cmd::probe_steam(),
         Command::Inspect { app_id, item_id } => exit(cmd::inspect(app_id, item_id)),
-        Command::UpdateFile { .. } => "update-file",
+        Command::UpdateFile {
+            app_id,
+            item_id,
+            file,
+        } => exit(cmd::update_file(app_id, item_id, &file)),
         Command::Download {
             app_id,
             item_id,
             output,
         } => exit(cmd::download(app_id, item_id, &output)),
-    };
-
-    eprintln!("error: {command} is not implemented yet");
-    ExitCode::FAILURE
+    }
 }

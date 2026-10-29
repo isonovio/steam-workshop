@@ -47,6 +47,10 @@ impl Session {
         unsafe { steamworks::sys::SteamAPI_GetHSteamPipe() }
     }
 
+    pub(crate) fn app_id(&self) -> u32 {
+        self.client.utils().app_id().0
+    }
+
     pub fn user_id(&self) -> u64 {
         self.client.user().steam_id().raw()
     }
