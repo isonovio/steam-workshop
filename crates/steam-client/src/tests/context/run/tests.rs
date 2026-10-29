@@ -2,7 +2,7 @@ use std::fs;
 
 use super::*;
 
-const FIXTURE: &str = "run::tests::process_fixture";
+const FIXTURE: &str = "context::run::tests::process_fixture";
 const SPACED_ARG: &str = "a path with spaces/module.bson";
 
 #[test]
@@ -198,7 +198,7 @@ fn live_session_boundary() {
         ("command-failure", 31, 1),
         ("initialization-failure", 31, 0),
     ] {
-        let output = fixture_for("run::tests::session_fixture", case, None);
+        let output = fixture_for("context::run::tests::session_fixture", case, None);
         assert_eq!(output.status.code(), Some(code), "{case}: {output:?}");
         let stdout = String::from_utf8(output.stdout).unwrap();
         assert_eq!(

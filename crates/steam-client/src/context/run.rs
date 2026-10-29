@@ -7,8 +7,9 @@ use std::process::{Command, ExitStatus, Stdio};
 
 use thiserror::Error;
 
-use crate::env::{CHILD_APP_ID, Environment};
 use crate::{Session, SessionError};
+
+use super::env::{CHILD_APP_ID, Environment};
 
 #[derive(Debug, Error)]
 pub enum RunError<E: Error + 'static> {
@@ -73,5 +74,5 @@ fn dispatch<E: Error + 'static>(
 }
 
 #[cfg(test)]
-#[path = "tests/run/tests.rs"]
+#[path = "../tests/context/run/tests.rs"]
 mod tests;

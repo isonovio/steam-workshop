@@ -1,9 +1,9 @@
 use std::env;
 use std::ffi::OsString;
 
-pub(crate) const CHILD_APP_ID: &str = "STEAM_WORKSHOP_CHILD_APP_ID";
+pub(super) const CHILD_APP_ID: &str = "STEAM_WORKSHOP_CHILD_APP_ID";
 
-pub(crate) struct Environment {
+pub(super) struct Environment {
     pub child_app_id: Option<OsString>,
     pub steam_app_id: Option<OsString>,
     pub steam_game_id: Option<OsString>,

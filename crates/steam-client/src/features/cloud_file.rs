@@ -1,9 +1,8 @@
 use std::ffi::CString;
 
-use steamworks::sys;
 use thiserror::Error;
 
-use super::RemoteStorage;
+use super::{MAX_UPLOAD_SIZE, RemoteStorage};
 
 pub struct CloudFile<'session> {
     storage: RemoteStorage<'session>,
@@ -34,7 +33,7 @@ impl<'session> CloudFile<'session> {
     ) -> Result<Self, CreateFileError> {
         let name_cstr = to_filename(name).ok_or(CreateFileError::InvalidName)?;
 
-        if bytes.len() > sys::k_unMaxCloudFileChunkSize as usize {
+        if bytes.len() > MAX_UPLOAD_SIZE {
             return Err(CreateFileError::TooLarge);
         }
         if storage.exists(&name_cstr) {
