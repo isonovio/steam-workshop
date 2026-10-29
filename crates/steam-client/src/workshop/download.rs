@@ -1,9 +1,11 @@
 use std::num::NonZeroU64;
 use std::time::{Duration, Instant};
 
-use crate::{CallError, Session};
+use crate::CallError;
 
-impl Session {
+use super::Workshop;
+
+impl Workshop<'_> {
     pub fn download(
         &mut self,
         item_id: NonZeroU64,
@@ -11,7 +13,8 @@ impl Session {
     ) -> Result<Vec<u8>, CallError> {
         let start = Instant::now();
         let item = self.inspect(item_id, timeout)?;
-        self.remote_storage()
+        self.session
+            .remote_storage()
             .ok_or(CallError::InvalidResult)?
             .download_content(
                 item.content_handle,

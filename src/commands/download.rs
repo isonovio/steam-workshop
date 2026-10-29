@@ -15,7 +15,12 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64, output: &Path) -> i32 {
 
 fn download(session: &mut Session, item_id: NonZeroU64, output: &Path) -> Result<(), io::Error> {
     let timeout = Duration::from_secs(30);
-    let download = || session.download(item_id, timeout).map_err(io::Error::other);
+    let download = || {
+        session
+            .workshop()
+            .download(item_id, timeout)
+            .map_err(io::Error::other)
+    };
     let bytes = persist(output, download)?;
 
     println!("Downloaded {} bytes to {}", bytes.len(), output.display());

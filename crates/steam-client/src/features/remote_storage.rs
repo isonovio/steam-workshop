@@ -7,6 +7,8 @@ use crate::Session;
 
 use crate::utils::try_reserve_exact;
 
+pub const MAX_UPLOAD_SIZE: usize = sys::k_unMaxCloudFileChunkSize as usize;
+
 pub struct RemoteStorage<'session> {
     pub(super) pointer: NonNull<sys::ISteamRemoteStorage>,
     pub(super) session: &'session mut Session,

@@ -4,6 +4,7 @@ use std::sync::{Mutex, MutexGuard};
 use steamworks::Client;
 use thiserror::Error;
 
+use crate::Workshop;
 use crate::features::RemoteStorage;
 
 static SESSION: Mutex<()> = Mutex::new(());
@@ -42,6 +43,10 @@ impl Session {
             return Err(SessionError::NotLoggedIn);
         }
         Ok(Self { client, _guard })
+    }
+
+    pub fn workshop(&mut self) -> Workshop<'_> {
+        Workshop::new(self)
     }
 
     pub fn remote_storage(&mut self) -> Option<RemoteStorage<'_>> {

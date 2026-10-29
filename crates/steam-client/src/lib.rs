@@ -1,17 +1,11 @@
-mod cloud;
 mod env;
 mod features;
-mod models;
 mod run;
 mod session;
-mod staging;
-mod update;
 mod utils;
 mod workshop;
 
-pub use features::{CallError, CloudFile, CreateFileError, RemoteStorage};
-pub use models::{Visibility, WorkshopItem};
+pub use features::{CallError, CloudFile, CreateFileError, MAX_UPLOAD_SIZE, RemoteStorage};
 pub use run::{RunError, run};
 pub use session::{Session, SessionError, is_running};
-pub use staging::{CloudError, CloudOperation};
-pub use update::{MAX_UPLOAD_SIZE, UpdateError};
+pub use workshop::{CloudError, CloudOperation, UpdateError, Visibility, Workshop, WorkshopItem};

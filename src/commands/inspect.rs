@@ -10,7 +10,9 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64) -> i32 {
 }
 
 fn inspect(session: &mut Session, item_id: NonZeroU64) -> Result<(), CallError> {
-    let item = session.inspect(item_id, Duration::from_secs(30))?;
+    let item = session
+        .workshop()
+        .inspect(item_id, Duration::from_secs(30))?;
     show(&item);
     Ok(())
 }

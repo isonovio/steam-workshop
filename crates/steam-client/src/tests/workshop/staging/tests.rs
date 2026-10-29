@@ -66,13 +66,15 @@ fn live_temporary_cloud_files() {
     let payload = b"steam-workshop temporary Cloud test";
     let mut names = Vec::new();
     for fail in [false, true] {
-        let result = session.with_temporary_cloud_file(payload, |_, filename| {
-            names.push(filename.to_owned());
-            CloudOperation::Complete(match fail {
-                false => Ok(()),
-                true => Err(CallError::InvalidResult),
-            })
-        });
+        let result = session
+            .workshop()
+            .with_temporary_cloud_file(payload, |_, filename| {
+                names.push(filename.to_owned());
+                CloudOperation::Complete(match fail {
+                    false => Ok(()),
+                    true => Err(CallError::InvalidResult),
+                })
+            });
         match fail {
             false => result.unwrap(),
             true => assert!(matches!(

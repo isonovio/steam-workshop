@@ -5,6 +5,6 @@ mod remote_storage;
 mod shared_file;
 
 pub use cloud_file::{CloudFile, CreateFileError};
-pub use remote_storage::RemoteStorage;
+pub use remote_storage::{MAX_UPLOAD_SIZE, RemoteStorage};
 
 pub use callbacks::CallError;

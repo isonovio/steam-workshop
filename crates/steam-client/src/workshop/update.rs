@@ -1,12 +1,11 @@
 use std::num::NonZeroU64;
 use std::time::Duration;
 
-use steamworks::sys;
 use thiserror::Error;
 
-use crate::{CallError, Session, WorkshopItem};
+use crate::{CallError, MAX_UPLOAD_SIZE, WorkshopItem};
 
-pub const MAX_UPLOAD_SIZE: usize = sys::k_unMaxCloudFileChunkSize as usize;
+use super::Workshop;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum UpdateError {
@@ -20,7 +19,7 @@ pub enum UpdateError {
     Call(#[from] CallError),
 }
 
-impl Session {
+impl Workshop<'_> {
     pub fn validate_update(
         &mut self,
         item_id: NonZeroU64,
@@ -31,7 +30,7 @@ impl Session {
             return Err(UpdateError::TooLarge);
         }
         let item = self.inspect(item_id, timeout)?;
-        item.validate_update(self.app_id(), self.user_id())?;
+        item.validate_update(self.session.app_id(), self.session.user_id())?;
         Ok(item)
     }
 }
@@ -52,5 +51,5 @@ impl WorkshopItem {
 }
 
 #[cfg(test)]
-#[path = "tests/update/tests.rs"]
+#[path = "../tests/workshop/update/tests.rs"]
 mod tests;

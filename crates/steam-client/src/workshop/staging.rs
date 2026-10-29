@@ -4,6 +4,8 @@ use crate::{CallError, CloudFile, CreateFileError, Session};
 
 use crate::utils::random_u128;
 
+use super::Workshop;
+
 pub enum CloudOperation<T> {
     Complete(Result<T, CallError>),
     Uncertain(CallError),
@@ -37,13 +39,13 @@ struct TemporaryCloudFile<'session> {
     file: CloudFile<'session>,
 }
 
-impl Session {
+impl Workshop<'_> {
     pub fn with_temporary_cloud_file<T>(
         &mut self,
         bytes: &[u8],
-        operation: impl FnOnce(&mut Self, &str) -> CloudOperation<T>,
+        operation: impl FnOnce(&mut Session, &str) -> CloudOperation<T>,
     ) -> Result<T, CloudError> {
-        let mut temporary = TemporaryCloudFile::new(self, bytes)?;
+        let mut temporary = TemporaryCloudFile::new(self.session, bytes)?;
         let outcome = temporary.file.with_session(operation);
         temporary.finish(outcome)
     }
@@ -90,5 +92,5 @@ fn finish<T>(
 }
 
 #[cfg(test)]
-#[path = "tests/staging/tests.rs"]
+#[path = "../tests/workshop/staging/tests.rs"]
 mod tests;

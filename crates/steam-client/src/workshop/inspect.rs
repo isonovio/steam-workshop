@@ -1,15 +1,18 @@
 use std::num::NonZeroU64;
 use std::time::Duration;
 
-use crate::{CallError, Session, WorkshopItem};
+use crate::{CallError, WorkshopItem};
 
-impl Session {
+use super::Workshop;
+
+impl Workshop<'_> {
     pub fn inspect(
         &mut self,
         item_id: NonZeroU64,
         timeout: Duration,
     ) -> Result<WorkshopItem, CallError> {
-        self.remote_storage()
+        self.session
+            .remote_storage()
             .ok_or(CallError::InvalidResult)?
             .published_file_details(item_id, timeout)
     }

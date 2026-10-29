@@ -15,6 +15,7 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64, file: &Path) -> i32 {
 fn update_file(session: &mut Session, item_id: NonZeroU64, path: &Path) -> Result<(), io::Error> {
     let bytes = read_input(path)?;
     let item = session
+        .workshop()
         .validate_update(item_id, &bytes, Duration::from_secs(30))
         .map_err(io::Error::other)?;
     println!(
