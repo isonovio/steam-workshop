@@ -47,6 +47,10 @@ fn process_fixture() {
 }
 
 fn fixture(case: &str, marker: Option<&str>) -> std::process::Output {
+    fixture_for(FIXTURE, case, marker)
+}
+
+fn fixture_for(test: &str, case: &str, marker: Option<&str>) -> std::process::Output {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -60,7 +64,7 @@ fn fixture(case: &str, marker: Option<&str>) -> std::process::Output {
         .args([
             "--ignored",
             "--exact",
-            FIXTURE,
+            test,
             "--nocapture",
             "--skip",
             SPACED_ARG,
@@ -136,4 +140,93 @@ fn rejects_mismatched_child_environment_without_relaunching() {
             .unwrap()
             .contains("Invalid Steam child process configuration")
     );
+}
+
+#[test]
+#[ignore = "live subprocess fixture, invoked by live_session_boundary"]
+fn session_fixture() {
+    println!("session-process-entry");
+    let case = env::var("TEST_CASE").unwrap();
+    let app_id = NonZeroU32::new(match case.as_str() {
+        "initialization-failure" => u32::MAX,
+        _ => 286160,
+    })
+    .unwrap();
+    let child = env::var_os(CHILD_APP_ID).is_some();
+    let result = run(app_id, |session| {
+        assert_ne!(session.user_id(), 0);
+        assert!(matches!(
+            Session::connect(app_id),
+            Err(SessionError::Unavailable)
+        ));
+        println!("session-command-output");
+        match case.as_str() {
+            "command-failure" => Err(io::Error::other("session command failed")),
+            _ => Ok(()),
+        }
+    });
+    if child {
+        match case.as_str() {
+            "initialization-failure" => assert!(
+                matches!(result, Err(RunError::Initialization(_))),
+                "{result:?}"
+            ),
+            "command-failure" => assert!(matches!(result, Err(RunError::Command(_))), "{result:?}"),
+            _ => assert!(matches!(result, Ok(0)), "{result:?}"),
+        }
+        // This query is valid without initialization; zero confirms SDK shutdown.
+        assert_eq!(unsafe { steamworks::sys::SteamAPI_GetHSteamPipe() }, 0);
+        if case != "initialization-failure" {
+            let session = Session::connect(app_id).unwrap();
+            assert_ne!(session.user_id(), 0);
+            drop(session);
+            assert_eq!(unsafe { steamworks::sys::SteamAPI_GetHSteamPipe() }, 0);
+        }
+        println!("session-cleanup-verified");
+    }
+    let code = match result {
+        Ok(code) => code,
+        Err(error) => {
+            eprintln!("{error}");
+            31
+        }
+    };
+    std::process::exit(code);
+}
+
+#[test]
+#[ignore = "requires Steam running and logged in with access to app 286160"]
+fn live_session_boundary() {
+    for (case, code, executions) in [
+        ("success", 0, 1),
+        ("command-failure", 31, 1),
+        ("initialization-failure", 31, 0),
+    ] {
+        let output = fixture_for("run::tests::session_fixture", case, None);
+        assert_eq!(output.status.code(), Some(code), "{case}: {output:?}");
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(
+            stdout.matches("session-process-entry").count(),
+            2,
+            "{case}: {stdout}"
+        );
+        assert_eq!(
+            stdout.matches("session-command-output").count(),
+            executions,
+            "{case}: {stdout}"
+        );
+        assert_eq!(
+            stdout.matches("session-cleanup-verified").count(),
+            1,
+            "{case}: {stdout}"
+        );
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        match case {
+            "command-failure" => assert!(stderr.contains("session command failed"), "{stderr}"),
+            "initialization-failure" => {
+                assert!(stderr.contains("Steam initialization failed"), "{stderr}")
+            }
+            _ => (),
+        }
+    }
 }
