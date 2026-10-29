@@ -1,30 +1,13 @@
-use std::ffi::CString;
+use std::ffi::CStr;
 use std::ptr::NonNull;
 
 use steamworks::sys;
-use thiserror::Error;
 
 use crate::Session;
-
-use super::CloudFile;
 
 pub struct RemoteStorage<'session> {
     pub(super) pointer: NonNull<sys::ISteamRemoteStorage>,
     pub(super) session: &'session mut Session,
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum CreateFileError {
-    #[error("Invalid Cloud filename")]
-    InvalidName,
-    #[error("Cloud file already exists")]
-    AlreadyExists,
-    #[error("Input exceeds the upload limit")]
-    TooLarge,
-    #[error("Failed to write Cloud file")]
-    Write,
-    #[error("Write failed and partial file cleanup failed: {filename}")]
-    Cleanup { filename: String },
 }
 
 impl<'session> RemoteStorage<'session> {
@@ -37,65 +20,55 @@ impl<'session> RemoteStorage<'session> {
         })
     }
 
-    /// Creates a new owned file. Steam has no atomic create-if-absent operation.
-    pub fn write_new(
-        self,
-        name: &str,
-        bytes: &[u8],
-    ) -> Result<CloudFile<'session>, CreateFileError> {
-        let name = filename(name).ok_or(CreateFileError::InvalidName)?;
-        if bytes.len() > sys::k_unMaxCloudFileChunkSize as usize {
-            return Err(CreateFileError::TooLarge);
-        }
-        if self.exists(&name) {
-            return Err(CreateFileError::AlreadyExists);
-        }
-        // The validated filename and slice remain alive through the synchronous call.
-        let written = unsafe {
+    pub(super) fn exists(&self, file: &CStr) -> bool {
+        // The interface retains the session and the name is NUL-terminated.
+        unsafe { sys::SteamAPI_ISteamRemoteStorage_FileExists(self.this(), file.as_ptr()) }
+    }
+
+    pub(super) fn get_size(&self, file: &CStr) -> Option<usize> {
+        let size =
+            unsafe { sys::SteamAPI_ISteamRemoteStorage_GetFileSize(self.this(), file.as_ptr()) };
+        size.try_into().ok()
+    }
+
+    pub(super) fn read(&self, file: &CStr) -> Option<Vec<u8>> {
+        self.exists(file).then_some(())?;
+        let size = self.get_size(file)?;
+        let mut buffer = try_reserve_exact(size)?;
+        let read = unsafe {
+            sys::SteamAPI_ISteamRemoteStorage_FileRead(
+                self.this(),
+                file.as_ptr(),
+                buffer.as_mut_ptr().cast(),
+                size as i32,
+            )
+        };
+        (read == size as i32).then_some(buffer)
+    }
+
+    pub(super) fn write(&self, file: &CStr, bytes: &[u8]) -> bool {
+        unsafe {
             sys::SteamAPI_ISteamRemoteStorage_FileWrite(
-                self.pointer.as_ptr(),
-                name.as_ptr(),
+                self.this(),
+                file.as_ptr(),
                 bytes.as_ptr().cast(),
                 bytes.len() as i32,
             )
-        };
-        self.finish_write(name, written)
-    }
-
-    fn exists(&self, name: &CString) -> bool {
-        // The interface retains the session and the name is NUL-terminated.
-        unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_FileExists(self.pointer.as_ptr(), name.as_ptr())
         }
     }
 
-    fn finish_write(
-        self,
-        name: CString,
-        written: bool,
-    ) -> Result<CloudFile<'session>, CreateFileError> {
-        if written {
-            return Ok(CloudFile::new(self, name));
-        }
-        if self.exists(&name) {
-            let file = CloudFile::new(self, name);
-            if let Err(file) = file.delete() {
-                return Err(CreateFileError::Cleanup {
-                    filename: file.retain(),
-                });
-            }
-        }
-        Err(CreateFileError::Write)
+    pub(super) fn delete(&self, file: &CStr) -> bool {
+        unsafe { sys::SteamAPI_ISteamRemoteStorage_FileDelete(self.this(), file.as_ptr()) }
+    }
+
+    fn this(&self) -> *mut sys::ISteamRemoteStorage {
+        self.pointer.as_ptr()
     }
 }
 
-fn filename(name: &str) -> Option<CString> {
-    if name.is_empty() {
-        return None;
-    }
-    CString::new(name).ok()
+fn try_reserve_exact(size: usize) -> Option<Vec<u8>> {
+    let mut bytes = Vec::new();
+    bytes.try_reserve_exact(size).ok()?;
+    bytes.resize(size, 0);
+    Some(bytes)
 }
-
-#[cfg(test)]
-#[path = "../tests/features/remote_storage/tests.rs"]
-mod tests;

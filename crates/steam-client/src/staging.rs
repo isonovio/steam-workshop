@@ -53,7 +53,7 @@ impl<'session> TemporaryCloudFile<'session> {
     fn new(session: &'session mut Session, bytes: &[u8]) -> Result<Self, CloudError> {
         let name = temporary_filename()?;
         let storage = session.remote_storage().ok_or(CloudError::Unavailable)?;
-        let file = storage.write_new(&name, bytes)?;
+        let file = CloudFile::new(storage, &name, bytes)?;
         Ok(Self { file })
     }
 

@@ -80,11 +80,12 @@ fn live_temporary_cloud_files() {
                 Err(CloudError::Call(CallError::InvalidResult))
             )),
         }
-        let file = session
-            .remote_storage()
-            .unwrap()
-            .write_new(names.last().unwrap(), payload)
-            .unwrap();
+        let file = CloudFile::new(
+            session.remote_storage().unwrap(),
+            names.last().unwrap(),
+            payload,
+        )
+        .unwrap();
         assert!(file.delete().is_ok());
     }
     assert_ne!(names[0], names[1]);
