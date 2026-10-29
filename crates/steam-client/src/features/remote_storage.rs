@@ -5,6 +5,8 @@ use steamworks::sys;
 
 use crate::Session;
 
+use crate::utils::try_reserve_exact;
+
 pub struct RemoteStorage<'session> {
     pub(super) pointer: NonNull<sys::ISteamRemoteStorage>,
     pub(super) session: &'session mut Session,
@@ -64,11 +66,4 @@ impl<'session> RemoteStorage<'session> {
     fn this(&self) -> *mut sys::ISteamRemoteStorage {
         self.pointer.as_ptr()
     }
-}
-
-fn try_reserve_exact(size: usize) -> Option<Vec<u8>> {
-    let mut bytes = Vec::new();
-    bytes.try_reserve_exact(size).ok()?;
-    bytes.resize(size, 0);
-    Some(bytes)
 }

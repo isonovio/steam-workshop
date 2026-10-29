@@ -129,5 +129,5 @@ fn wait_until<T>(
 }
 
 #[cfg(test)]
-#[path = "tests/callbacks/tests.rs"]
+#[path = "../tests/features/callbacks/tests.rs"]
 mod tests;
