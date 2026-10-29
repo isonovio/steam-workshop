@@ -21,7 +21,7 @@ pub enum CallError {
     Timeout,
 }
 
-pub struct PendingCall<'a, T> {
+pub(crate) struct PendingCall<'a, T> {
     pub(crate) session: &'a mut Session,
     pub(crate) handle: sys::SteamAPICall_t,
     pub(crate) callback_id: i32,

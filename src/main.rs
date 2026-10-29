@@ -11,7 +11,10 @@ fn main() -> ExitCode {
     let args = Args::parse();
     let command = match args.command {
         Command::ProbeSteam => return commands::probe_steam(),
-        Command::Inspect { .. } => "inspect",
+        Command::Inspect { app_id, item_id } => {
+            let code = commands::inspect(app_id, item_id);
+            std::process::exit(code);
+        }
         Command::UpdateFile { .. } => "update-file",
         Command::Download { .. } => "download",
     };
