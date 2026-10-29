@@ -5,6 +5,8 @@ use thiserror::Error;
 
 use crate::{CallError, MAX_UPLOAD_SIZE, Session};
 
+use crate::utils::random_u128;
+
 #[derive(Debug, Error)]
 pub enum CloudError {
     #[error("Input exceeds the {MAX_UPLOAD_SIZE}-byte upload limit")]
@@ -38,9 +40,7 @@ impl Session {
         if bytes.len() > MAX_UPLOAD_SIZE {
             return Err(CloudError::TooLarge);
         }
-        let mut random = [0; 16];
-        getrandom::fill(&mut random).map_err(|error| CloudError::Random(error.to_string()))?;
-        let filename = format!("steam-workshop-{:032x}.tmp", u128::from_ne_bytes(random));
+        let filename = temporary_filename()?;
         let name = CString::new(filename.as_str()).unwrap();
         // The exclusive session keeps this interface alive through operation and cleanup.
         let storage = unsafe { sys::SteamAPI_SteamRemoteStorage_v016() };
@@ -73,6 +73,11 @@ impl Session {
             }
         })
     }
+}
+
+fn temporary_filename() -> Result<String, CloudError> {
+    let random = random_u128().map_err(|error| CloudError::Random(error.to_string()))?;
+    Ok(format!("steam-workshop-{random:032x}.tmp"))
 }
 
 fn finish<T>(

@@ -6,7 +6,7 @@ use steamworks::{SteamError, sys};
 
 use crate::Session;
 use crate::callbacks::{CallError, PendingCall};
-use crate::native::field;
+use crate::utils::native::field;
 
 type DownloadResult = sys::RemoteStorageDownloadUGCResult_t;
 

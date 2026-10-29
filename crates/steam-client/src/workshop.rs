@@ -6,7 +6,7 @@ use std::time::Duration;
 use steamworks::{SteamError, sys};
 
 use crate::callbacks::{CallError, PendingCall};
-use crate::native::field;
+use crate::utils::native::field;
 use crate::{Session, Visibility, WorkshopItem};
 
 type Details = sys::RemoteStorageGetPublishedFileDetailsResult_t;
