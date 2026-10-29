@@ -7,3 +7,6 @@ publish = false
 [dependencies]
 steamworks = { version = "0.13.1", features = ["raw-bindings"] }
 thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"

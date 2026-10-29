@@ -13,3 +13,4 @@ unsafe_code = "forbid"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 steam-client = { path = "crates/steam-client" }
+tempfile = "3"

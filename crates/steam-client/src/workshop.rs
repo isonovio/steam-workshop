@@ -6,6 +6,7 @@ use std::time::Duration;
 use steamworks::{SteamError, sys};
 
 use crate::callbacks::{CallError, PendingCall};
+use crate::native::field;
 use crate::{Session, Visibility, WorkshopItem};
 
 type Details = sys::RemoteStorageGetPublishedFileDetailsResult_t;
@@ -74,6 +75,7 @@ impl WorkshopItem {
         let size = i32::from_ne_bytes(field(bytes, offset_of!(Details, m_nFileSize)));
         let visibility = u32::from_ne_bytes(field(bytes, offset_of!(Details, m_eVisibility)));
         Some(Self {
+            content_handle: u64::from_ne_bytes(field(bytes, offset_of!(Details, m_hFile))),
             id: u64::from_ne_bytes(field(bytes, offset_of!(Details, m_nPublishedFileId))),
             title: text(bytes, offset_of!(Details, m_rgchTitle), 129)?,
             creator_app_id: u32::from_ne_bytes(field(bytes, offset_of!(Details, m_nCreatorAppID))),
@@ -88,10 +90,6 @@ impl WorkshopItem {
             visibility: Visibility::from_repr(visibility)?,
         })
     }
-}
-
-fn field<const N: usize>(bytes: &[u8], offset: usize) -> [u8; N] {
-    bytes[offset..offset + N].try_into().unwrap()
 }
 
 fn text(bytes: &[u8], offset: usize, size: usize) -> Option<String> {

@@ -9,6 +9,8 @@ use crate::Session;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CallError {
+    #[error("Unable to allocate download buffer")]
+    Allocation,
     #[error("Steam call did not start")]
     InvalidHandle,
     #[error("Steam call failed in transport")]

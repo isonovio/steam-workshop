@@ -1,5 +1,4 @@
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
 
@@ -51,14 +50,11 @@ fn fixture(case: &str, marker: Option<&str>) -> std::process::Output {
 }
 
 fn fixture_for(test: &str, case: &str, marker: Option<&str>) -> std::process::Output {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let directory =
-        env::temp_dir().join(format!("steam-client test {} {unique}", std::process::id()));
-    fs::create_dir(&directory).unwrap();
-    let directory = directory.canonicalize().unwrap();
+    let temporary = tempfile::Builder::new()
+        .prefix("steam-client test ")
+        .tempdir()
+        .unwrap();
+    let directory = temporary.path().canonicalize().unwrap();
     let mut command = Command::new(env::current_exe().unwrap());
     command
         .args([
@@ -80,7 +76,7 @@ fn fixture_for(test: &str, case: &str, marker: Option<&str>) -> std::process::Ou
     }
     let output = command.output().unwrap();
     assert_eq!(fs::read_dir(&directory).unwrap().count(), 0);
-    fs::remove_dir(directory).unwrap();
+    temporary.close().unwrap();
     output
 }
 
