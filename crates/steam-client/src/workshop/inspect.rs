@@ -13,10 +13,10 @@ impl Workshop<'_> {
         item_id: NonZeroU64,
         timeout: Duration,
     ) -> Result<WorkshopItem, CallError> {
-        self.session
-            .remote_storage()
-            .ok_or(CallError::InvalidResult)?
-            .published_file_details(item_id, timeout)
+        let (steam, mut executor) = self.session.access();
+        let storage = steam.remote_storage().ok_or(CallError::InvalidResult)?;
+        storage
+            .published_file_details(item_id, timeout, &mut executor)
             .map(WorkshopItem::from)
     }
 }

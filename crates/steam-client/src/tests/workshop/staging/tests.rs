@@ -1,3 +1,5 @@
+use crate::Session;
+
 use std::cell::Cell;
 use std::num::NonZeroU32;
 
@@ -68,7 +70,7 @@ fn live_temporary_cloud_files() {
     for fail in [false, true] {
         let result = session
             .workshop()
-            .with_temporary_cloud_file(payload, |_, filename| {
+            .with_temporary_cloud_file(payload, |_, filename, _| {
                 names.push(filename.to_owned());
                 CloudOperation::Complete(match fail {
                     false => Ok(()),
@@ -82,8 +84,9 @@ fn live_temporary_cloud_files() {
                 Err(CloudError::Call(CallError::InvalidResult))
             )),
         }
+        let (steam, _) = session.access();
         let file = CloudFile::new(
-            session.remote_storage().unwrap(),
+            steam.remote_storage().unwrap(),
             names.last().unwrap(),
             payload,
         )

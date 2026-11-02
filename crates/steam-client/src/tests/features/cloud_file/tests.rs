@@ -18,34 +18,39 @@ fn validates_names() {
 #[ignore = "writes and deletes isolated test Cloud files; requires SteamAppId/SteamGameId 286160"]
 fn live_owned_file() {
     let mut session = Session::connect(NonZeroU32::new(286160).unwrap()).unwrap();
+    let (steam, _) = session.access();
     let name = format!(
         "steam-workshop-{:032x}.tmp",
         crate::utils::random_u128().unwrap()
     );
     let payload = b"owned Cloud file test";
-    let mut file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
+    let file = CloudFile::new(steam.remote_storage().unwrap(), &name, payload).unwrap();
     assert_eq!(file.name(), name);
     assert_eq!(file.read().unwrap(), payload);
-    file.with_storage(|storage, name| {
+    {
+        let storage = steam.remote_storage().unwrap();
+        let name = &name;
         assert!(matches!(
             CloudFile::new(storage, name, b"collision"),
             Err(CreateFileError::AlreadyExists)
         ));
-    });
+    }
     assert_eq!(file.read().unwrap(), payload);
     assert!(file.delete().is_ok());
 
-    let file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
+    let file = CloudFile::new(steam.remote_storage().unwrap(), &name, payload).unwrap();
     assert_eq!(file.retain(), name);
-    let storage = session.remote_storage().unwrap();
+    let storage = steam.remote_storage().unwrap();
     let native_name = to_filename(&name).unwrap();
     assert!(storage.native.file(&native_name).exists());
     assert!(storage.native.file(&native_name).delete());
-    let mut file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
-    file.with_storage(|storage, name| {
+    let file = CloudFile::new(steam.remote_storage().unwrap(), &name, payload).unwrap();
+    {
+        let storage = steam.remote_storage().unwrap();
+        let name = &name;
         let name = to_filename(name).unwrap();
         assert!(storage.native.file(&name).delete());
-    });
+    }
     let file = match file.delete() {
         Ok(()) => panic!("deleting missing file unexpectedly succeeded"),
         Err(file) => file,
@@ -57,9 +62,10 @@ fn live_owned_file() {
 #[ignore = "writes and deletes an isolated test Cloud file; requires SteamAppId/SteamGameId 286160"]
 fn live_rejected_writes_and_invalid_names() {
     let mut session = Session::connect(NonZeroU32::new(286160).unwrap()).unwrap();
+    let (steam, _) = session.access();
     for name in ["", "bad\0name"] {
         assert!(matches!(
-            CloudFile::new(session.remote_storage().unwrap(), name, b"invalid"),
+            CloudFile::new(steam.remote_storage().unwrap(), name, b"invalid"),
             Err(CreateFileError::InvalidName)
         ));
     }
@@ -68,7 +74,7 @@ fn live_rejected_writes_and_invalid_names() {
         crate::utils::random_u128().unwrap()
     );
     let native_name = to_filename(&name).unwrap();
-    let storage = session.remote_storage().unwrap();
+    let storage = steam.remote_storage().unwrap();
     assert!(!storage.native.file(&native_name).exists());
 
     assert!(matches!(
@@ -76,6 +82,6 @@ fn live_rejected_writes_and_invalid_names() {
         Err(CreateFileError::Write)
     ));
 
-    let storage = session.remote_storage().unwrap();
+    let storage = steam.remote_storage().unwrap();
     assert!(!storage.native.file(&native_name).exists());
 }

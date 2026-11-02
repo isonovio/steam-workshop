@@ -1,4 +1,5 @@
 use crate::Session;
+use steamworks::SteamError;
 
 use super::*;
 
@@ -6,18 +7,15 @@ use super::*;
 #[ignore = "requires Steam running with SteamAppId and SteamGameId set to 286160"]
 fn live_legacy_call() {
     let mut session = Session::connect(std::num::NonZeroU32::new(286160).unwrap()).unwrap();
-    let storage = session.remote_storage().unwrap();
-    let call = storage
-        .native
-        .published_file(3826709471)
-        .get_details()
+    let (steam, mut executor) = session.access();
+    let storage = steam.remote_storage().unwrap();
+    let result = storage
+        .published_file_details(
+            std::num::NonZeroU64::new(3826709471).unwrap(),
+            Duration::from_secs(30),
+            &mut executor,
+        )
         .unwrap();
-    let result = PendingCall {
-        runtime: storage.runtime,
-        call,
-    }
-    .wait(Duration::from_secs(30))
-    .unwrap();
     assert_eq!(result.id, 3826709471);
 }
 

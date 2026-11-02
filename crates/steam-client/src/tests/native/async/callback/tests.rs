@@ -1,3 +1,5 @@
+use crate::native::{Dispatch, Runtime};
+
 use super::*;
 
 #[test]
@@ -13,11 +15,11 @@ fn checks_native_retrieval_before_decoding() {
 fn live_release_after_invalid_callback() {
     use std::time::{Duration, Instant};
 
-    let mut runtime = Runtime::new().unwrap();
-    let storage = unsafe { crate::native::remote_storage::RemoteStorage::new().unwrap() };
+    let runtime = Runtime::new().unwrap();
+    let storage = crate::native::remote_storage::RemoteStorage::new(&runtime).unwrap();
     let _first = storage.published_file(3826709471).get_details().unwrap();
     {
-        let mut dispatch = Dispatch::new(&mut runtime);
+        let mut dispatch = unsafe { Dispatch::new(&runtime) };
         let start = Instant::now();
         loop {
             assert!(start.elapsed() < Duration::from_secs(30));
@@ -35,11 +37,15 @@ fn live_release_after_invalid_callback() {
             std::thread::sleep(Duration::from_millis(1));
         }
     }
+    let mut dispatch = unsafe { Dispatch::new(&runtime) };
     let second = storage.published_file(3826709471).get_details().unwrap();
     let start = Instant::now();
     loop {
         assert!(start.elapsed() < Duration::from_secs(30));
-        if let Some(details) = second.poll(&mut runtime).unwrap() {
+        dispatch.run_frame();
+        if let Some(callback) = dispatch.next()
+            && let Some(details) = second.resolve(&callback).unwrap()
+        {
             assert_eq!(details.id, 3826709471);
             break;
         }

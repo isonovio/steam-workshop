@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
 
-use super::callbacks::{Completion, Dispatch};
-use super::{ApiError, Runtime};
+use crate::native::{ApiError, Runtime};
+
+use super::callback::{Callback, Completion};
 
 pub(crate) struct ApiCall<'runtime, T> {
     handle: NonZeroU64,
@@ -13,7 +14,7 @@ pub(crate) struct ApiCall<'runtime, T> {
 }
 
 impl<'runtime, T> ApiCall<'runtime, T> {
-    pub(super) fn new(
+    pub(in crate::native) fn new(
         handle: u64,
         callback_id: i32,
         result_size: usize,
@@ -28,12 +29,7 @@ impl<'runtime, T> ApiCall<'runtime, T> {
         })
     }
 
-    pub(crate) fn poll(&self, runtime: &mut Runtime) -> Result<Option<T>, ApiError> {
-        let mut dispatch = Dispatch::new(runtime);
-        dispatch.run_frame();
-        let Some(callback) = dispatch.next() else {
-            return Ok(None);
-        };
+    pub(crate) fn resolve(&self, callback: &Callback<'_>) -> Result<Option<T>, ApiError> {
         let Some(completed) = callback.completion()? else {
             return Ok(None);
         };
@@ -60,5 +56,5 @@ impl<'runtime, T> ApiCall<'runtime, T> {
 }
 
 #[cfg(test)]
-#[path = "../tests/native/api_call/tests.rs"]
+#[path = "../../tests/native/async/api_call/tests.rs"]
 mod tests;

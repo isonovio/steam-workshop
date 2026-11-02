@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{CallError, CloudFile, CreateFileError, RemoteStorage, Session};
+use crate::{CallError, CloudFile, CreateFileError, Executor, RemoteStorage};
 
 use crate::utils::random_u128;
 
@@ -43,18 +43,23 @@ impl Workshop<'_> {
     pub fn with_temporary_cloud_file<T>(
         &mut self,
         bytes: &[u8],
-        operation: impl FnOnce(RemoteStorage<'_>, &str) -> CloudOperation<T>,
+        operation: impl for<'runtime> FnOnce(
+            RemoteStorage<'runtime>,
+            &str,
+            &mut Executor<'runtime>,
+        ) -> CloudOperation<T>,
     ) -> Result<T, CloudError> {
-        let mut temporary = TemporaryCloudFile::new(self.session, bytes)?;
-        let outcome = temporary.file.with_storage(operation);
+        let (steam, mut executor) = self.session.access();
+        let storage = steam.remote_storage().ok_or(CloudError::Unavailable)?;
+        let temporary = TemporaryCloudFile::new(storage, bytes)?;
+        let outcome = operation(storage, temporary.file.name(), &mut executor);
         temporary.finish(outcome)
     }
 }
 
 impl<'session> TemporaryCloudFile<'session> {
-    fn new(session: &'session mut Session, bytes: &[u8]) -> Result<Self, CloudError> {
+    fn new(storage: RemoteStorage<'session>, bytes: &[u8]) -> Result<Self, CloudError> {
         let name = temporary_filename()?;
-        let storage = session.remote_storage().ok_or(CloudError::Unavailable)?;
         let file = CloudFile::new(storage, &name, bytes)?;
         Ok(Self { file })
     }

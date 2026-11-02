@@ -62,13 +62,6 @@ impl<'session> CloudFile<'session> {
         &self.name
     }
 
-    pub(crate) fn with_storage<T>(
-        &mut self,
-        operation: impl FnOnce(RemoteStorage<'_>, &str) -> T,
-    ) -> T {
-        operation(self.storage.reborrow(), &self.name)
-    }
-
     pub fn read(&self) -> Option<Vec<u8>> {
         let file = self.storage.native.file(&self.name_cstr);
         file.exists().then_some(())?;

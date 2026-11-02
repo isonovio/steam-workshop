@@ -1,16 +1,11 @@
 use std::marker::PhantomData;
-use std::mem::{MaybeUninit, size_of};
+use std::mem::size_of;
 
 use steamworks::sys;
 
-use super::{ApiError, Runtime};
+use crate::native::ApiError;
 
-pub(super) struct Dispatch<'runtime> {
-    pipe: sys::HSteamPipe,
-    _runtime: PhantomData<&'runtime mut Runtime>,
-}
-
-pub(super) struct Callback<'dispatch> {
+pub(crate) struct Callback<'dispatch> {
     pipe: sys::HSteamPipe,
     message: sys::CallbackMsg_t,
     _dispatch: PhantomData<&'dispatch mut ()>,
@@ -22,32 +17,16 @@ pub(super) struct Completion {
     pub size: u32,
 }
 
-impl<'runtime> Dispatch<'runtime> {
-    pub(super) fn new(runtime: &'runtime mut Runtime) -> Self {
+impl Callback<'_> {
+    /// The message must be the current callback; the caller must hold exclusive dispatch access.
+    pub(super) unsafe fn new(pipe: sys::HSteamPipe, message: sys::CallbackMsg_t) -> Self {
         Self {
-            pipe: runtime.pipe(),
-            _runtime: PhantomData,
+            pipe,
+            message,
+            _dispatch: PhantomData,
         }
     }
 
-    pub(super) fn run_frame(&mut self) {
-        unsafe { sys::SteamAPI_ManualDispatch_RunFrame(self.pipe) }
-    }
-
-    pub(super) fn next(&mut self) -> Option<Callback<'_>> {
-        let mut message = MaybeUninit::uninit();
-        let retrieved = unsafe {
-            sys::SteamAPI_ManualDispatch_GetNextCallback(self.pipe, message.as_mut_ptr())
-        };
-        retrieved.then(|| Callback {
-            pipe: self.pipe,
-            message: unsafe { message.assume_init() },
-            _dispatch: PhantomData,
-        })
-    }
-}
-
-impl Callback<'_> {
     pub(super) fn completion(&self) -> Result<Option<Completion>, ApiError> {
         if self.message.m_iCallback != sys::SteamAPICallCompleted_t_k_iCallback as i32 {
             return Ok(None);
@@ -113,5 +92,5 @@ fn retrieval_status(retrieved: bool, failed: bool) -> Result<(), ApiError> {
 }
 
 #[cfg(test)]
-#[path = "../tests/native/callbacks/tests.rs"]
+#[path = "../../tests/native/async/callback/tests.rs"]
 mod tests;

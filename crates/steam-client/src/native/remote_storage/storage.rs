@@ -17,8 +17,7 @@ pub(crate) struct RemoteStorage<'runtime> {
 }
 
 impl<'runtime> RemoteStorage<'runtime> {
-    /// The caller must keep the SDK initialized for this interface and all derived wrappers.
-    pub(crate) unsafe fn new() -> Option<Self> {
+    pub(crate) fn new(_runtime: &'runtime Runtime) -> Option<Self> {
         let pointer = unsafe { sys::SteamAPI_SteamRemoteStorage_v016() };
         Some(Self {
             pointer: NonNull::new(pointer)?,

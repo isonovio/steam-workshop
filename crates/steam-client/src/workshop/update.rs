@@ -6,7 +6,9 @@ use thiserror::Error;
 
 use crate::{CallError, CloudError, CloudOperation, MAX_UPLOAD_SIZE, RemoteStorage, WorkshopItem};
 
-use crate::features::{CommitResult, PendingCall, PublishedUpdate};
+use crate::steam::{Executor, PendingCall};
+
+use crate::features::{CommitResult, PublishedUpdate};
 
 use super::{UpdateResult, Workshop};
 
@@ -34,12 +36,12 @@ impl Workshop<'_> {
         let start = Instant::now();
         self.validate_update(item_id, bytes, timeout)?;
         let needs_legal_agreement =
-            self.with_temporary_cloud_file(bytes, |storage, filename| {
+            self.with_temporary_cloud_file(bytes, |storage, filename, executor| {
                 let remaining = timeout.saturating_sub(start.elapsed());
                 if remaining.is_zero() {
                     return CloudOperation::Complete(Err(CallError::Timeout));
                 }
-                let call = match submit(storage, item_id, filename) {
+                let call = match submit(storage, item_id, filename, executor) {
                     Ok(call) => call,
                     Err(error) => return CloudOperation::Complete(Err(error)),
                 };
@@ -66,17 +68,18 @@ impl Workshop<'_> {
     }
 }
 
-fn submit<'session>(
+fn submit<'a, 'session>(
     storage: RemoteStorage<'session>,
     item_id: NonZeroU64,
     filename: &str,
-) -> Result<PendingCall<'session, CommitResult>, CallError> {
+    executor: &'a mut Executor<'session>,
+) -> Result<PendingCall<'a, 'session, CommitResult>, CallError> {
     let filename = CString::new(filename).map_err(|_| CallError::InvalidResult)?;
     let mut update = PublishedUpdate::new(storage, item_id).ok_or(CallError::InvalidHandle)?;
     if !update.set_file(&filename) {
         return Err(CallError::InvalidResult);
     }
-    update.commit().ok_or(CallError::InvalidHandle)
+    update.commit(executor).ok_or(CallError::InvalidHandle)
 }
 
 fn completion(

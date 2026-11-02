@@ -4,14 +4,16 @@ use std::sync::{Mutex, MutexGuard};
 use thiserror::Error;
 
 use crate::Workshop;
-use crate::features::RemoteStorage;
 use crate::native::{InitializationError, Runtime};
+
+use super::{Access, Executor};
 
 static SESSION: Mutex<()> = Mutex::new(());
 
 pub struct Session {
     // Drop the runtime before releasing exclusive access to the Steam session.
     runtime: Runtime,
+    dispatch_access: (),
     _guard: MutexGuard<'static, ()>,
 }
 
@@ -42,15 +44,22 @@ impl Session {
         if !runtime.logged_on() {
             return Err(SessionError::NotLoggedIn);
         }
-        Ok(Self { runtime, _guard })
+        Ok(Self {
+            runtime,
+            dispatch_access: (),
+            _guard,
+        })
     }
 
     pub fn workshop(&mut self) -> Workshop<'_> {
         Workshop::new(self)
     }
 
-    pub fn remote_storage(&mut self) -> Option<RemoteStorage<'_>> {
-        RemoteStorage::new(&mut self.runtime)
+    pub fn access(&mut self) -> (Access<'_>, Executor<'_>) {
+        let access = Access::new(&self.runtime);
+        // The session owns the sole dispatch token; the returned borrow prevents reuse.
+        let executor = unsafe { Executor::new(&self.runtime, &mut self.dispatch_access) };
+        (access, executor)
     }
 
     pub(crate) fn app_id(&self) -> u32 {
@@ -63,5 +72,5 @@ impl Session {
 }
 
 #[cfg(test)]
-#[path = "tests/session/tests.rs"]
+#[path = "../tests/steam/session/tests.rs"]
 mod tests;

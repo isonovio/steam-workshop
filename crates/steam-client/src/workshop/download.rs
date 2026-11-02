@@ -13,13 +13,13 @@ impl Workshop<'_> {
     ) -> Result<Vec<u8>, CallError> {
         let start = Instant::now();
         let item = self.inspect(item_id, timeout)?;
-        self.session
-            .remote_storage()
-            .ok_or(CallError::InvalidResult)?
-            .download_content(
-                item.content_handle,
-                item.size,
-                timeout.saturating_sub(start.elapsed()),
-            )
+        let (steam, mut executor) = self.session.access();
+        let storage = steam.remote_storage().ok_or(CallError::InvalidResult)?;
+        storage.download_content(
+            item.content_handle,
+            item.size,
+            timeout.saturating_sub(start.elapsed()),
+            &mut executor,
+        )
     }
 }

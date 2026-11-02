@@ -3,15 +3,17 @@ use steamworks::sys;
 
 use crate::utils::try_reserve_exact;
 
-use super::RemoteStorage;
-use super::callbacks::{CallError, PendingCall};
+use crate::steam::{CallError, Executor, PendingCall};
 
-impl RemoteStorage<'_> {
+use super::RemoteStorage;
+
+impl<'runtime> RemoteStorage<'runtime> {
     pub(crate) fn download_content(
         self,
         content_handle: u64,
         size: u32,
         timeout: Duration,
+        executor: &mut Executor<'runtime>,
     ) -> Result<Vec<u8>, CallError> {
         if content_handle == 0 || content_handle == sys::k_UGCHandleInvalid {
             return Err(CallError::InvalidHandle);
@@ -22,11 +24,7 @@ impl RemoteStorage<'_> {
         let ugc = self.native.ugc(content_handle);
         let call = ugc.download().ok_or(CallError::InvalidHandle)?;
 
-        let download = PendingCall {
-            runtime: &mut *self.runtime,
-            call,
-        }
-        .wait(timeout)?;
+        let download = PendingCall { executor, call }.wait(timeout)?;
         if download.handle != content_handle || download.size as u32 != size {
             return Err(CallError::InvalidResult);
         }
