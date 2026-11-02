@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
-use std::time::Duration;
 
 use crate::CallError;
+use crate::utils::Timeout;
 
 use super::Workshop;
 
@@ -9,7 +9,7 @@ impl Workshop<'_> {
     pub fn download(
         &mut self,
         item_id: NonZeroU64,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<Vec<u8>, CallError> {
         let (steam, mut executor) = self.session.access();
         steam

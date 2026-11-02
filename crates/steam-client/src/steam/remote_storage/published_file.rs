@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
-use std::time::{Duration, Instant};
 
 use crate::native::remote_storage;
 use crate::native::results::PublishedFileDetails;
+use crate::utils::Timeout;
 
 use crate::steam::{CallError, Executor, PendingCall};
 
@@ -32,17 +32,16 @@ impl<'runtime, 'storage> PublishedFile<'runtime, 'storage> {
     pub fn download(
         &self,
         executor: &mut Executor<'runtime>,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<Vec<u8>, CallError> {
-        let start = Instant::now();
         let content = self.content(executor, timeout)?;
-        content.download(timeout.saturating_sub(start.elapsed()), executor)
+        content.download(timeout, executor)
     }
 
     fn content(
         &self,
         executor: &mut Executor<'runtime>,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<Ugc<'runtime>, CallError> {
         let details = self.get_details(timeout, executor)?;
         let storage = self.native.remote_storage();
@@ -54,9 +53,10 @@ impl<'runtime, 'storage> PublishedFile<'runtime, 'storage> {
 
     pub(crate) fn get_details(
         &self,
-        timeout: Duration,
+        timeout: Timeout,
         executor: &mut Executor<'runtime>,
     ) -> Result<PublishedFileDetails, CallError> {
+        let timeout = timeout.check().ok_or(CallError::Timeout)?;
         let item_id = self.item_id;
         let call = self.native.get_details().ok_or(CallError::InvalidHandle)?;
         let item = PendingCall { executor, call }.wait(timeout)?;

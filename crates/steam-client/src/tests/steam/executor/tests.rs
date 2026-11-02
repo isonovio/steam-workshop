@@ -12,7 +12,7 @@ fn live_legacy_call() {
         .remote_storage(|storage| {
             storage
                 .published_file(std::num::NonZeroU64::new(3826709471).unwrap())
-                .get_details(Duration::from_secs(30), &mut executor)
+                .get_details(Timeout::new(Duration::from_secs(30)), &mut executor)
                 .unwrap()
         })
         .unwrap();
@@ -22,7 +22,7 @@ fn live_legacy_call() {
 #[test]
 fn completes_after_pending_poll() {
     let mut polls = 0;
-    let result = wait_until(Duration::from_secs(1), || {
+    let result = wait_until(Timeout::new(Duration::from_secs(1)), || {
         polls += 1;
         Ok((polls == 2).then_some(42))
     });
@@ -31,10 +31,12 @@ fn completes_after_pending_poll() {
 
 #[test]
 fn timeout_does_not_poll_or_retry() {
-    let result = wait_until::<()>(Duration::ZERO, || panic!("polled after deadline"));
+    let result = wait_until::<()>(Timeout::new(Duration::ZERO), || {
+        panic!("polled after deadline")
+    });
     assert_eq!(result, Err(CallError::Timeout));
     assert_eq!(
-        wait_until::<()>(Duration::from_millis(1), || Ok(None)),
+        wait_until::<()>(Timeout::new(Duration::from_millis(1)), || Ok(None)),
         Err(CallError::Timeout)
     );
 }
@@ -51,7 +53,9 @@ fn native_errors_are_preserved() {
         CallError::Steam(SteamError::AccessDenied)
     );
     assert_eq!(
-        wait_until::<()>(Duration::from_secs(1), || Err(CallError::Transport)),
+        wait_until::<()>(Timeout::new(Duration::from_secs(1)), || Err(
+            CallError::Transport
+        )),
         Err(CallError::Transport)
     );
 }

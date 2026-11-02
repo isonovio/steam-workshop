@@ -1,8 +1,8 @@
 use std::num::NonZeroU64;
-use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
+use crate::utils::Timeout;
 use crate::{CallError, CloudError, CloudFile, MAX_UPLOAD_SIZE, WorkshopItem};
 
 use super::staging::{finish, temporary_filename};
@@ -27,17 +27,16 @@ impl Workshop<'_> {
         &mut self,
         item_id: NonZeroU64,
         bytes: &[u8],
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<UpdateResult, UpdateError> {
-        let start = Instant::now();
         self.validate_update(item_id, bytes, timeout)?;
+        let timeout = timeout.check().ok_or(CallError::Timeout)?;
         let (steam, mut executor) = self.session.access();
         let needs_legal_agreement = steam
             .remote_storage(|storage| {
                 let file = CloudFile::new(storage, &temporary_filename()?, bytes)?;
-                let remaining = timeout.saturating_sub(start.elapsed());
                 let published_file = storage.published_file(item_id);
-                let outcome = published_file.update_with(file, &mut executor, remaining);
+                let outcome = published_file.update_with(file, &mut executor, timeout);
                 finish(outcome)
             })
             .ok_or(CloudError::Unavailable)??;
@@ -51,7 +50,7 @@ impl Workshop<'_> {
         &mut self,
         item_id: NonZeroU64,
         bytes: &[u8],
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<WorkshopItem, UpdateError> {
         if bytes.len() > MAX_UPLOAD_SIZE {
             return Err(UpdateError::TooLarge);

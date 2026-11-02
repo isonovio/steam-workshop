@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use crate::native::remote_storage::{self, ReadAction};
+use crate::utils::Timeout;
 
 use crate::utils::try_reserve_exact;
 
@@ -18,11 +17,12 @@ impl<'runtime> Ugc<'runtime> {
 
     pub(super) fn download(
         self,
-        timeout: Duration,
+        timeout: Timeout,
         executor: &mut Executor<'runtime>,
     ) -> Result<Vec<u8>, CallError> {
         let mut bytes = try_reserve_exact(self.size as usize).ok_or(CallError::Allocation)?;
 
+        let timeout = timeout.check().ok_or(CallError::Timeout)?;
         let call = self.native.download().ok_or(CallError::InvalidHandle)?;
 
         let download = PendingCall { executor, call }.wait(timeout)?;

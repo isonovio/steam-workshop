@@ -1,8 +1,8 @@
 use std::num::NonZeroU64;
-use std::time::{Duration, Instant};
 
 use crate::native::ApiCall;
 use crate::native::results::CommitResult;
+use crate::utils::Timeout;
 
 use crate::steam::{CallError, Executor, PendingCall};
 
@@ -46,18 +46,14 @@ impl<'runtime, 'storage> PublishedFile<'runtime, 'storage> {
         self,
         file: CloudFile<'runtime, 'storage>,
         executor: &mut Executor<'runtime>,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> UpdateOutcome<'runtime, 'storage> {
-        let start = Instant::now();
-        if timeout.is_zero() {
-            return UpdateOutcome::NotSubmitted {
-                file,
-                error: CallError::Timeout,
-            };
-        }
-        let call = self.submit(&file);
+        let call = timeout
+            .check()
+            .ok_or(CallError::Timeout)
+            .and_then(|_| self.submit(&file));
         match PendingUpdate::new(self, file, executor, call) {
-            Ok(pending) => pending.wait(timeout.saturating_sub(start.elapsed())),
+            Ok(pending) => pending.wait(timeout),
             Err(rejected) => UpdateOutcome::NotSubmitted {
                 file: rejected.file,
                 error: rejected.error,
@@ -96,7 +92,7 @@ impl<'executor, 'runtime, 'storage> PendingUpdate<'executor, 'runtime, 'storage>
 }
 
 impl<'runtime, 'storage> PendingUpdate<'_, 'runtime, 'storage> {
-    fn wait(self, timeout: Duration) -> UpdateOutcome<'runtime, 'storage> {
+    fn wait(self, timeout: Timeout) -> UpdateOutcome<'runtime, 'storage> {
         resolve(self.file, self.call.wait(timeout), self.item.item_id())
     }
 }

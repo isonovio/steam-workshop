@@ -1,7 +1,8 @@
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::native::{ApiCall, ApiError, Dispatch, Runtime};
+use crate::utils::Timeout;
 
 use super::CallError;
 
@@ -23,7 +24,7 @@ impl<'runtime> Executor<'runtime> {
     pub(super) fn wait<T>(
         &mut self,
         call: &ApiCall<'_, T>,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<T, CallError> {
         wait_until(timeout, || self.poll(call).map_err(CallError::from))
     }
@@ -38,18 +39,15 @@ impl<'runtime> Executor<'runtime> {
 }
 
 fn wait_until<T>(
-    timeout: Duration,
+    timeout: Timeout,
     mut poll: impl FnMut() -> Result<Option<T>, CallError>,
 ) -> Result<T, CallError> {
-    let start = Instant::now();
     loop {
-        if start.elapsed() >= timeout {
-            return Err(CallError::Timeout);
-        }
+        timeout.check().ok_or(CallError::Timeout)?;
         if let Some(result) = poll()? {
             return Ok(result);
         }
-        thread::sleep(Duration::from_millis(10).min(timeout.saturating_sub(start.elapsed())));
+        thread::sleep(Duration::from_millis(10).min(timeout.remaining()));
     }
 }
 

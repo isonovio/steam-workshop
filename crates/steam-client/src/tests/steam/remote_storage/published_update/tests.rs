@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::*;
 
 #[test]
@@ -128,7 +130,7 @@ fn live_pending_drop_and_timeout_retain_content() {
             assert_eq!(pending.file.name(), name);
             match timeout {
                 false => drop(pending),
-                true => assert!(matches!(pending.wait(Duration::ZERO), UpdateOutcome::Uncertain { filename, error: CallError::Timeout } if filename == name)),
+                true => assert!(matches!(pending.wait(Timeout::new(Duration::ZERO)), UpdateOutcome::Uncertain { filename, error: CallError::Timeout } if filename == name)),
             }
             let native = storage.native.file(CString::new(name).unwrap());
             assert!(native.exists());
@@ -189,7 +191,7 @@ fn live_zero_timeout_returns_file_without_submission() {
             );
             let file = CloudFile::new(storage, &name, b"not submitted").unwrap();
             let item = storage.published_file(NonZeroU64::new(3826709471).unwrap());
-            match item.update_with(file, &mut executor, Duration::ZERO) {
+            match item.update_with(file, &mut executor, Timeout::new(Duration::ZERO)) {
                 UpdateOutcome::NotSubmitted {
                     file,
                     error: CallError::Timeout,

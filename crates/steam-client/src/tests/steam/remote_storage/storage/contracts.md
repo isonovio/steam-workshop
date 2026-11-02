@@ -34,7 +34,7 @@ fn mixed<'runtime>(steam: Access<'runtime>, executor: &mut Executor<'runtime>) {
         let item = first.published_file(NonZeroU64::new(42).unwrap());
         steam.remote_storage(|second| {
             let file = CloudFile::new(second, "temporary", b"payload").unwrap();
-            let _ = item.update_with(file, executor, std::time::Duration::from_secs(30));
+            let _ = item.update_with(file, executor, steam_client::Timeout::new(std::time::Duration::from_secs(30)));
         });
     });
 }
@@ -80,7 +80,7 @@ Submission consumes the file; the caller cannot delete it while the update runs.
 ```compile_fail,E0382
 use steam_client::{CloudFile, Executor, PublishedFile};
 fn pending<'runtime, 'storage>(item: PublishedFile<'runtime, 'storage>, file: CloudFile<'runtime, 'storage>, executor: &mut Executor<'runtime>) {
-    let pending = item.update_with(file, executor, std::time::Duration::from_secs(30));
+    let pending = item.update_with(file, executor, steam_client::Timeout::new(std::time::Duration::from_secs(30)));
     let _ = file.delete();
     drop(pending);
 }
@@ -92,8 +92,8 @@ Execution access is released when the operation returns, so another update can f
 use std::time::Duration;
 use steam_client::{CloudFile, Executor, PublishedFile};
 fn sequential<'runtime, 'storage>(first: PublishedFile<'runtime, 'storage>, second: PublishedFile<'runtime, 'storage>, a: CloudFile<'runtime, 'storage>, b: CloudFile<'runtime, 'storage>, executor: &mut Executor<'runtime>) {
-    let first_outcome = first.update_with(a, executor, Duration::from_secs(30));
-    let second_outcome = second.update_with(b, executor, Duration::from_secs(30));
+    let first_outcome = first.update_with(a, executor, steam_client::Timeout::new(Duration::from_secs(30)));
+    let second_outcome = second.update_with(b, executor, steam_client::Timeout::new(Duration::from_secs(30)));
 }
 ```
 
@@ -109,7 +109,7 @@ The caller receives an outcome with cleanup ownership only when safe.
 use std::time::Duration;
 use steam_client::{CloudFile, Executor, PublishedFile, UpdateOutcome};
 fn submit<'runtime, 'storage>(item: PublishedFile<'runtime, 'storage>, file: CloudFile<'runtime, 'storage>, executor: &mut Executor<'runtime>) {
-    match item.update_with(file, executor, Duration::from_secs(30)) {
+    match item.update_with(file, executor, steam_client::Timeout::new(Duration::from_secs(30))) {
         UpdateOutcome::NotSubmitted { file, .. } | UpdateOutcome::Complete { file, .. } => { let _ = file.delete(); }
         UpdateOutcome::Uncertain { filename, error } => { eprintln!("Retained {filename}: {error}"); }
     }

@@ -4,7 +4,7 @@ use std::num::{NonZeroU32, NonZeroU64};
 use std::path::Path;
 use std::time::Duration;
 
-use steam_client::{MAX_UPLOAD_SIZE, Session, Workshop};
+use steam_client::{MAX_UPLOAD_SIZE, Session, Timeout, Workshop};
 
 use super::call_client;
 
@@ -15,7 +15,7 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64, file: &Path) -> i32 {
 fn update_file(session: &mut Session, item_id: NonZeroU64, path: &Path) -> Result<(), io::Error> {
     let bytes = read_input(path)?;
     let result = Workshop::new(session)
-        .update_file(item_id, &bytes, Duration::from_secs(300))
+        .update_file(item_id, &bytes, Timeout::new(Duration::from_secs(300)))
         .map_err(io::Error::other)?;
     match result.needs_legal_agreement {
         true => println!(

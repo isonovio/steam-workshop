@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
-use std::time::Duration;
 
+use crate::utils::Timeout;
 use crate::{CallError, WorkshopItem};
 
 use crate::steam::{PublishedFileDetails, PublishedFileVisibility};
@@ -11,7 +11,7 @@ impl Workshop<'_> {
     pub fn inspect(
         &mut self,
         item_id: NonZeroU64,
-        timeout: Duration,
+        timeout: Timeout,
     ) -> Result<WorkshopItem, CallError> {
         let (steam, mut executor) = self.session.access();
         steam
