@@ -1,6 +1,5 @@
 #[derive(Debug, PartialEq, Eq)]
 pub struct WorkshopItem {
-    pub(crate) content_handle: u64,
     pub id: u64,
     pub title: String,
     pub creator_app_id: u32,

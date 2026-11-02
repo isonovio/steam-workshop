@@ -1,35 +1,37 @@
 use std::time::Duration;
 
-use crate::native::remote_storage::ReadAction;
+use crate::native::remote_storage::{self, ReadAction};
 
 use crate::utils::try_reserve_exact;
 
 use crate::steam::{CallError, Executor, PendingCall};
 
-use super::RemoteStorage;
+pub(super) struct Ugc<'runtime> {
+    native: remote_storage::Ugc<'runtime>,
+    size: u32,
+}
 
-impl<'runtime> RemoteStorage<'runtime, '_> {
-    pub(crate) fn download_content(
+impl<'runtime> Ugc<'runtime> {
+    pub(super) fn new(native: remote_storage::Ugc<'runtime>, size: u32) -> Self {
+        Self { native, size }
+    }
+
+    pub(super) fn download(
         self,
-        content_handle: u64,
-        size: u32,
         timeout: Duration,
         executor: &mut Executor<'runtime>,
     ) -> Result<Vec<u8>, CallError> {
-        let ugc = self
-            .native
-            .ugc(content_handle)
-            .ok_or(CallError::InvalidHandle)?;
-        let mut bytes = try_reserve_exact(size as usize).ok_or(CallError::Allocation)?;
+        let mut bytes = try_reserve_exact(self.size as usize).ok_or(CallError::Allocation)?;
 
-        let call = ugc.download().ok_or(CallError::InvalidHandle)?;
+        let call = self.native.download().ok_or(CallError::InvalidHandle)?;
 
         let download = PendingCall { executor, call }.wait(timeout)?;
-        if download.handle != content_handle || download.size as u32 != size {
+        if download.handle != self.native.handle() || download.size as u32 != self.size {
             return Err(CallError::InvalidResult);
         }
 
-        let read = ugc
+        let read = self
+            .native
             .read(&mut bytes, 0, ReadAction::Close)
             .ok_or(CallError::InvalidResult)?;
         if read != download.size {

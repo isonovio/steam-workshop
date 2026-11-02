@@ -31,6 +31,10 @@ impl<'runtime> Ugc<'runtime> {
         Some(Self { storage, handle })
     }
 
+    pub(crate) fn handle(&self) -> u64 {
+        self.handle
+    }
+
     pub(crate) fn download(&self) -> Option<ApiCall<'runtime, DownloadResult>> {
         let handle = unsafe {
             sys::SteamAPI_ISteamRemoteStorage_UGCDownload(

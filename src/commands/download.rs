@@ -4,7 +4,7 @@ use std::num::{NonZeroU32, NonZeroU64};
 use std::path::Path;
 use std::time::Duration;
 
-use steam_client::Session;
+use steam_client::{Session, Workshop};
 use tempfile::NamedTempFile;
 
 use super::call_client;
@@ -16,8 +16,7 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64, output: &Path) -> i32 {
 fn download(session: &mut Session, item_id: NonZeroU64, output: &Path) -> Result<(), io::Error> {
     let timeout = Duration::from_secs(30);
     let download = || {
-        session
-            .workshop()
+        Workshop::new(session)
             .download(item_id, timeout)
             .map_err(io::Error::other)
     };

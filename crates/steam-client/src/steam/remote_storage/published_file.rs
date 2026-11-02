@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::native::remote_storage;
 use crate::native::results::PublishedFileDetails;
@@ -8,6 +8,7 @@ use crate::native::results::PublishedFileDetails;
 use crate::steam::{CallError, Executor, PendingCall};
 
 use super::RemoteStorage;
+use super::ugc::Ugc;
 
 pub struct PublishedFile<'runtime, 'storage> {
     pub(super) native: remote_storage::PublishedFile<'runtime>,
@@ -28,8 +29,31 @@ impl<'runtime, 'storage> PublishedFile<'runtime, 'storage> {
         self.item_id
     }
 
+    pub fn download(
+        &self,
+        executor: &mut Executor<'runtime>,
+        timeout: Duration,
+    ) -> Result<Vec<u8>, CallError> {
+        let start = Instant::now();
+        let content = self.content(executor, timeout)?;
+        content.download(timeout.saturating_sub(start.elapsed()), executor)
+    }
+
+    fn content(
+        &self,
+        executor: &mut Executor<'runtime>,
+        timeout: Duration,
+    ) -> Result<Ugc<'runtime>, CallError> {
+        let details = self.get_details(timeout, executor)?;
+        let storage = self.native.remote_storage();
+        let native_ugc = storage
+            .ugc(details.content_handle)
+            .ok_or(CallError::InvalidHandle)?;
+        Ok(Ugc::new(native_ugc, details.size))
+    }
+
     pub(crate) fn get_details(
-        self,
+        &self,
         timeout: Duration,
         executor: &mut Executor<'runtime>,
     ) -> Result<PublishedFileDetails, CallError> {

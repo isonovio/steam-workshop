@@ -3,7 +3,6 @@ use std::sync::{Mutex, MutexGuard};
 
 use thiserror::Error;
 
-use crate::Workshop;
 use crate::native::{InitializationError, Runtime};
 
 use super::{Access, Executor};
@@ -49,10 +48,6 @@ impl Session {
             dispatch_access: (),
             _guard,
         })
-    }
-
-    pub fn workshop(&mut self) -> Workshop<'_> {
-        Workshop::new(self)
     }
 
     pub fn access(&mut self) -> (Access<'_>, Executor<'_>) {

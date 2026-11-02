@@ -17,7 +17,6 @@ fn preserves_details_at_application_boundary() {
     assert_eq!(
         item,
         WorkshopItem {
-            content_handle: 11,
             id: 12,
             title: "Test 模组".into(),
             creator_app_id: 13,

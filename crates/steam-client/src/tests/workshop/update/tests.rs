@@ -5,7 +5,6 @@ use super::*;
 #[test]
 fn checks_consumer_app_and_owner() {
     let item = WorkshopItem {
-        content_handle: 0,
         id: 1,
         title: String::new(),
         creator_app_id: 99,

@@ -20,7 +20,11 @@ impl<'runtime> PublishedFile<'runtime> {
         Self { storage, item_id }
     }
 
-    pub(crate) fn get_details(self) -> Option<ApiCall<'runtime, PublishedFileDetails>> {
+    pub(crate) fn remote_storage(&self) -> RemoteStorage<'runtime> {
+        self.storage
+    }
+
+    pub(crate) fn get_details(&self) -> Option<ApiCall<'runtime, PublishedFileDetails>> {
         let handle = unsafe {
             sys::SteamAPI_ISteamRemoteStorage_GetPublishedFileDetails(
                 self.storage.pointer.as_ptr(),

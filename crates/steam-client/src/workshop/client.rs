@@ -5,7 +5,7 @@ pub struct Workshop<'session> {
 }
 
 impl<'session> Workshop<'session> {
-    pub(crate) fn new(session: &'session mut Session) -> Self {
+    pub fn new(session: &'session mut Session) -> Self {
         Self { session }
     }
 }

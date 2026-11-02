@@ -28,7 +28,6 @@ impl Workshop<'_> {
 impl From<PublishedFileDetails> for WorkshopItem {
     fn from(details: PublishedFileDetails) -> Self {
         Self {
-            content_handle: details.content_handle,
             id: details.id,
             title: details.title,
             creator_app_id: details.creator_app_id,

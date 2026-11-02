@@ -1,5 +1,5 @@
 use std::num::NonZeroU64;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::CallError;
 
@@ -11,17 +11,11 @@ impl Workshop<'_> {
         item_id: NonZeroU64,
         timeout: Duration,
     ) -> Result<Vec<u8>, CallError> {
-        let start = Instant::now();
-        let item = self.inspect(item_id, timeout)?;
         let (steam, mut executor) = self.session.access();
         steam
             .remote_storage(|storage| {
-                storage.download_content(
-                    item.content_handle,
-                    item.size,
-                    timeout.saturating_sub(start.elapsed()),
-                    &mut executor,
-                )
+                let published_file = storage.published_file(item_id);
+                published_file.download(&mut executor, timeout)
             })
             .ok_or(CallError::InvalidResult)?
     }
