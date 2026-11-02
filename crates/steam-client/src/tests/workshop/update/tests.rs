@@ -39,7 +39,9 @@ fn confirmed_commit_allows_cleanup_and_preserves_legal_status() {
         completion(
             Ok(CommitResult {
                 item_id: 42,
-                result: Err(CallError::Steam(steamworks::SteamError::AccessDenied))
+                result: Err(crate::native::ApiError::Steam(
+                    steamworks::SteamError::AccessDenied
+                ))
             }),
             id
         ),

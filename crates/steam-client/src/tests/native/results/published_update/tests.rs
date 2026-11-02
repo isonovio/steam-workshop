@@ -14,7 +14,7 @@ fn native_result(status: i32, legal: u8) -> Vec<u8> {
 fn decodes_success_and_legal_agreement() {
     for legal in [false, true] {
         assert_eq!(
-            decode(&native_result(1, u8::from(legal))),
+            CommitResult::decode(&native_result(1, u8::from(legal))),
             Ok(CommitResult {
                 item_id: 42,
                 result: Ok(legal)
@@ -26,16 +26,19 @@ fn decodes_success_and_legal_agreement() {
 #[test]
 fn distinguishes_confirmed_failure_from_unreadable_result() {
     assert_eq!(
-        decode(&native_result(15, 0)),
+        CommitResult::decode(&native_result(15, 0)),
         Ok(CommitResult {
             item_id: 42,
-            result: Err(CallError::Steam(SteamError::AccessDenied))
+            result: Err(ApiError::Steam(SteamError::AccessDenied))
         })
     );
-    assert_eq!(decode(&[]), Err(CallError::InvalidResult));
+    assert_eq!(CommitResult::decode(&[]), Err(ApiError::InvalidResult));
     assert_eq!(
-        decode(&native_result(i32::MAX, 0)),
-        Err(CallError::InvalidResult)
+        CommitResult::decode(&native_result(i32::MAX, 0)),
+        Err(ApiError::InvalidResult)
     );
-    assert_eq!(decode(&native_result(1, 2)), Err(CallError::InvalidResult));
+    assert_eq!(
+        CommitResult::decode(&native_result(1, 2)),
+        Err(ApiError::InvalidResult)
+    );
 }

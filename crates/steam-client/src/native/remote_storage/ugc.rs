@@ -1,4 +1,8 @@
+use std::mem::size_of;
 use steamworks::sys;
+
+use crate::native::ApiCall;
+use crate::native::results::DownloadResult;
 
 use super::RemoteStorage;
 
@@ -12,14 +16,20 @@ impl<'runtime> Ugc<'runtime> {
         Self { storage, handle }
     }
 
-    pub(crate) fn download(&self) -> u64 {
-        unsafe {
+    pub(crate) fn download(&self) -> Option<ApiCall<'runtime, DownloadResult>> {
+        let handle = unsafe {
             sys::SteamAPI_ISteamRemoteStorage_UGCDownload(
                 self.storage.pointer.as_ptr(),
                 self.handle,
                 0,
             )
-        }
+        };
+        ApiCall::new(
+            handle,
+            sys::RemoteStorageDownloadUGCResult_t_k_iCallback as i32,
+            size_of::<sys::RemoteStorageDownloadUGCResult_t>(),
+            DownloadResult::decode,
+        )
     }
 
     pub(crate) fn read(

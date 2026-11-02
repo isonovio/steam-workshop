@@ -1,6 +1,10 @@
 use std::ffi::CStr;
+use std::mem::size_of;
 
 use steamworks::sys;
+
+use crate::native::ApiCall;
+use crate::native::results::CommitResult;
 
 use super::super::RemoteStorage;
 
@@ -30,12 +34,18 @@ impl<'runtime> Update<'runtime> {
         }
     }
 
-    pub(crate) fn commit(self) -> u64 {
-        unsafe {
+    pub(crate) fn commit(self) -> Option<ApiCall<'runtime, CommitResult>> {
+        let handle = unsafe {
             sys::SteamAPI_ISteamRemoteStorage_CommitPublishedFileUpdate(
                 self.storage.pointer.as_ptr(),
                 self.handle,
             )
-        }
+        };
+        ApiCall::new(
+            handle,
+            sys::RemoteStorageUpdatePublishedFileResult_t_k_iCallback as i32,
+            size_of::<sys::RemoteStorageUpdatePublishedFileResult_t>(),
+            CommitResult::decode,
+        )
     }
 }

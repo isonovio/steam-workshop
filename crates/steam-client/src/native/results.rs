@@ -1,4 +1,8 @@
-use super::callbacks::CallError;
+mod published_file;
+mod published_update;
+mod ugc;
+
+use super::ApiError;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct PublishedFileDetails {
@@ -30,5 +34,5 @@ pub(crate) struct DownloadResult {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CommitResult {
     pub item_id: u64,
-    pub result: Result<bool, CallError>,
+    pub result: Result<bool, ApiError>,
 }

@@ -84,7 +84,9 @@ fn completion(
     item_id: NonZeroU64,
 ) -> CloudOperation<bool> {
     match result {
-        Ok(result) if result.item_id == item_id.get() => CloudOperation::Complete(result.result),
+        Ok(result) if result.item_id == item_id.get() => {
+            CloudOperation::Complete(result.result.map_err(CallError::from))
+        }
         Ok(_) => CloudOperation::Uncertain(CallError::InvalidResult),
         Err(error) => CloudOperation::Uncertain(error),
     }

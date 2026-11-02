@@ -1,15 +1,10 @@
-use std::mem::{offset_of, size_of};
 use std::time::Duration;
+use steamworks::sys;
 
-use steamworks::{SteamError, sys};
-
-use crate::utils::{native::field, try_reserve_exact};
+use crate::utils::try_reserve_exact;
 
 use super::RemoteStorage;
 use super::callbacks::{CallError, PendingCall};
-use super::results::DownloadResult;
-
-type NativeDownloadResult = sys::RemoteStorageDownloadUGCResult_t;
 
 impl RemoteStorage<'_> {
     pub(crate) fn download_content(
@@ -25,14 +20,11 @@ impl RemoteStorage<'_> {
         let mut bytes = try_reserve_exact(size as usize).ok_or(CallError::Allocation)?;
 
         let ugc = self.native.ugc(content_handle);
-        let handle = ugc.download();
+        let call = ugc.download().ok_or(CallError::InvalidHandle)?;
 
         let download = PendingCall {
             runtime: &mut *self.runtime,
-            handle,
-            callback_id: sys::RemoteStorageDownloadUGCResult_t_k_iCallback as i32,
-            result_size: size_of::<NativeDownloadResult>() as i32,
-            decode,
+            call,
         }
         .wait(timeout)?;
         if download.handle != content_handle || download.size as u32 != size {
@@ -48,40 +40,3 @@ impl RemoteStorage<'_> {
         Ok(bytes)
     }
 }
-
-fn decode(bytes: &[u8]) -> Result<DownloadResult, CallError> {
-    let bytes: &[u8; size_of::<NativeDownloadResult>()] = match bytes.try_into() {
-        Ok(bytes) => bytes,
-        Err(_) => return Err(CallError::InvalidResult),
-    };
-
-    let result = i32::from_ne_bytes(field(bytes, offset_of!(NativeDownloadResult, m_eResult)));
-    if result != sys::EResult::k_EResultOK as i32 {
-        return Err(match SteamError::try_from(i64::from(result)) {
-            Ok(error) => CallError::Steam(error),
-            Err(_) => CallError::InvalidResult,
-        });
-    }
-
-    DownloadResult::from_bytes(bytes).ok_or(CallError::InvalidResult)
-}
-
-impl DownloadResult {
-    fn from_bytes(bytes: &[u8; size_of::<NativeDownloadResult>()]) -> Option<Self> {
-        let size = i32::from_ne_bytes(field(
-            bytes,
-            offset_of!(NativeDownloadResult, m_nSizeInBytes),
-        ));
-        if size < 0 {
-            return None;
-        }
-        Some(Self {
-            handle: u64::from_ne_bytes(field(bytes, offset_of!(NativeDownloadResult, m_hFile))),
-            size,
-        })
-    }
-}
-
-#[cfg(test)]
-#[path = "../tests/features/ugc/tests.rs"]
-mod tests;
