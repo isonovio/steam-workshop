@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
-use crate::{CallError, CloudError, CloudOperation, MAX_UPLOAD_SIZE, Session, WorkshopItem};
+use crate::{CallError, CloudError, CloudOperation, MAX_UPLOAD_SIZE, RemoteStorage, WorkshopItem};
 
 use crate::features::{CommitResult, PendingCall, PublishedUpdate};
 
@@ -34,12 +34,12 @@ impl Workshop<'_> {
         let start = Instant::now();
         self.validate_update(item_id, bytes, timeout)?;
         let needs_legal_agreement =
-            self.with_temporary_cloud_file(bytes, |session, filename| {
+            self.with_temporary_cloud_file(bytes, |storage, filename| {
                 let remaining = timeout.saturating_sub(start.elapsed());
                 if remaining.is_zero() {
                     return CloudOperation::Complete(Err(CallError::Timeout));
                 }
-                let call = match submit(session, item_id, filename) {
+                let call = match submit(storage, item_id, filename) {
                     Ok(call) => call,
                     Err(error) => return CloudOperation::Complete(Err(error)),
                 };
@@ -67,12 +67,11 @@ impl Workshop<'_> {
 }
 
 fn submit<'session>(
-    session: &'session mut Session,
+    storage: RemoteStorage<'session>,
     item_id: NonZeroU64,
     filename: &str,
 ) -> Result<PendingCall<'session, CommitResult>, CallError> {
     let filename = CString::new(filename).map_err(|_| CallError::InvalidResult)?;
-    let storage = session.remote_storage().ok_or(CallError::InvalidResult)?;
     let mut update = PublishedUpdate::new(storage, item_id).ok_or(CallError::InvalidHandle)?;
     if !update.set_file(&filename) {
         return Err(CallError::InvalidResult);

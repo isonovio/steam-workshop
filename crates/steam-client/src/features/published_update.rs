@@ -46,7 +46,7 @@ impl<'session> PublishedUpdate<'session> {
             )
         };
         (handle != 0).then_some(PendingCall {
-            session: self.storage.session,
+            runtime: self.storage.runtime,
             handle,
             callback_id: sys::RemoteStorageUpdatePublishedFileResult_t_k_iCallback as i32,
             result_size: size_of::<NativeResult>() as i32,

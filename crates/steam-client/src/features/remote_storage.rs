@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 
 use steamworks::sys;
 
-use crate::Session;
+use crate::native::Runtime;
 
 use crate::utils::try_reserve_exact;
 
@@ -11,17 +11,24 @@ pub const MAX_UPLOAD_SIZE: usize = sys::k_unMaxCloudFileChunkSize as usize;
 
 pub struct RemoteStorage<'session> {
     pub(super) pointer: NonNull<sys::ISteamRemoteStorage>,
-    pub(super) session: &'session mut Session,
+    pub(super) runtime: &'session mut Runtime,
 }
 
 impl<'session> RemoteStorage<'session> {
-    pub(crate) fn new(session: &'session mut Session) -> Option<Self> {
+    pub(crate) fn new(runtime: &'session mut Runtime) -> Option<Self> {
         // The exclusive session borrow keeps the SDK alive for this interface.
         let pointer = unsafe { sys::SteamAPI_SteamRemoteStorage_v016() };
         Some(Self {
             pointer: NonNull::new(pointer)?,
-            session,
+            runtime,
         })
+    }
+
+    pub(super) fn reborrow(&mut self) -> RemoteStorage<'_> {
+        RemoteStorage {
+            pointer: self.pointer,
+            runtime: &mut *self.runtime,
+        }
     }
 
     pub(super) fn exists(&self, file: &CStr) -> bool {

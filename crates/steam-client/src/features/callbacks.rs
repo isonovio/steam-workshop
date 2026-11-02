@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use steamworks::{SteamError, sys};
 use thiserror::Error;
 
-use crate::Session;
+use crate::native::Runtime;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CallError {
@@ -24,7 +24,7 @@ pub enum CallError {
 }
 
 pub(crate) struct PendingCall<'a, T> {
-    pub(crate) session: &'a mut Session,
+    pub(crate) runtime: &'a mut Runtime,
     pub(crate) handle: sys::SteamAPICall_t,
     pub(crate) callback_id: i32,
     pub(crate) result_size: i32,
@@ -41,7 +41,7 @@ impl<T> PendingCall<'_, T> {
     }
 
     fn poll(&self) -> Result<Option<T>, CallError> {
-        let pipe = self.session.pipe();
+        let pipe = self.runtime.pipe();
         let mut message = MaybeUninit::<sys::CallbackMsg_t>::uninit();
         // The borrowed session owns this pipe and initialized manual dispatch.
         unsafe {

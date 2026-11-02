@@ -29,7 +29,7 @@ impl RemoteStorage<'_> {
             unsafe { sys::SteamAPI_ISteamRemoteStorage_UGCDownload(storage, content_handle, 0) };
 
         let download = PendingCall {
-            session: &mut *self.session,
+            runtime: &mut *self.runtime,
             handle,
             callback_id: sys::RemoteStorageDownloadUGCResult_t_k_iCallback as i32,
             result_size: size_of::<NativeDownloadResult>() as i32,

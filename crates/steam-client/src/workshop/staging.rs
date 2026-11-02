@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{CallError, CloudFile, CreateFileError, Session};
+use crate::{CallError, CloudFile, CreateFileError, RemoteStorage, Session};
 
 use crate::utils::random_u128;
 
@@ -43,10 +43,10 @@ impl Workshop<'_> {
     pub fn with_temporary_cloud_file<T>(
         &mut self,
         bytes: &[u8],
-        operation: impl FnOnce(&mut Session, &str) -> CloudOperation<T>,
+        operation: impl FnOnce(RemoteStorage<'_>, &str) -> CloudOperation<T>,
     ) -> Result<T, CloudError> {
         let mut temporary = TemporaryCloudFile::new(self.session, bytes)?;
-        let outcome = temporary.file.with_session(operation);
+        let outcome = temporary.file.with_storage(operation);
         temporary.finish(outcome)
     }
 }

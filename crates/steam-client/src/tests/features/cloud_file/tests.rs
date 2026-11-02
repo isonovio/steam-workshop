@@ -26,9 +26,9 @@ fn live_owned_file() {
     let mut file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
     assert_eq!(file.name(), name);
     assert_eq!(file.read().unwrap(), payload);
-    file.with_session(|session, name| {
+    file.with_storage(|storage, name| {
         assert!(matches!(
-            CloudFile::new(session.remote_storage().unwrap(), name, b"collision"),
+            CloudFile::new(storage, name, b"collision"),
             Err(CreateFileError::AlreadyExists)
         ));
     });
@@ -42,8 +42,7 @@ fn live_owned_file() {
     assert!(storage.exists(&native_name));
     assert!(storage.delete(&native_name));
     let mut file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
-    file.with_session(|session, name| {
-        let storage = session.remote_storage().unwrap();
+    file.with_storage(|storage, name| {
         let name = to_filename(name).unwrap();
         assert!(storage.delete(&name));
     });

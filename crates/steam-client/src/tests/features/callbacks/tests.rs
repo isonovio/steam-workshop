@@ -1,3 +1,5 @@
+use crate::Session;
+
 use super::*;
 
 #[test]
@@ -11,7 +13,7 @@ fn live_legacy_call() {
         sys::SteamAPI_ISteamRemoteStorage_GetPublishedFileDetails(storage, 3826709471, 0)
     };
     let call = PendingCall {
-        session: &mut session,
+        runtime: session.remote_storage().unwrap().runtime,
         handle,
         callback_id: sys::RemoteStorageGetPublishedFileDetailsResult_t_k_iCallback as i32,
         result_size: size_of::<sys::RemoteStorageGetPublishedFileDetailsResult_t>() as i32,

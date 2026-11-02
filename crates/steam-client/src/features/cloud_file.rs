@@ -59,11 +59,11 @@ impl<'session> CloudFile<'session> {
         &self.name
     }
 
-    pub(crate) fn with_session<T>(
+    pub(crate) fn with_storage<T>(
         &mut self,
-        operation: impl FnOnce(&mut crate::Session, &str) -> T,
+        operation: impl FnOnce(RemoteStorage<'_>, &str) -> T,
     ) -> T {
-        operation(self.storage.session, &self.name)
+        operation(self.storage.reborrow(), &self.name)
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {

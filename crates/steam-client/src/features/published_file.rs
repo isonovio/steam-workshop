@@ -28,7 +28,7 @@ impl RemoteStorage<'_> {
             )
         };
         let item = PendingCall {
-            session: self.session,
+            runtime: self.runtime,
             handle,
             callback_id: sys::RemoteStorageGetPublishedFileDetailsResult_t_k_iCallback as i32,
             result_size: size_of::<Details>() as i32,
