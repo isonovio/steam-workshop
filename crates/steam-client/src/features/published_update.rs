@@ -4,6 +4,7 @@ use std::num::NonZeroU64;
 
 use steamworks::{SteamError, sys};
 
+use crate::native::remote_storage::Update;
 use crate::utils::native::field;
 
 use super::RemoteStorage;
@@ -14,37 +15,21 @@ type NativeResult = sys::RemoteStorageUpdatePublishedFileResult_t;
 
 pub(crate) struct PublishedUpdate<'session> {
     storage: RemoteStorage<'session>,
-    handle: sys::PublishedFileUpdateHandle_t,
+    native: Update<'session>,
 }
 
 impl<'session> PublishedUpdate<'session> {
     pub(crate) fn new(storage: RemoteStorage<'session>, item_id: NonZeroU64) -> Option<Self> {
-        let handle = unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_CreatePublishedFileUpdateRequest(
-                storage.pointer.as_ptr(),
-                item_id.get(),
-            )
-        };
-        (handle != sys::k_PublishedFileUpdateHandleInvalid).then_some(Self { storage, handle })
+        let native = storage.native.published_file(item_id.get()).update()?;
+        Some(Self { storage, native })
     }
 
     pub(crate) fn set_file(&mut self, filename: &CStr) -> bool {
-        unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_UpdatePublishedFileFile(
-                self.storage.pointer.as_ptr(),
-                self.handle,
-                filename.as_ptr(),
-            )
-        }
+        self.native.set_file(filename)
     }
 
     pub(crate) fn commit(self) -> Option<PendingCall<'session, CommitResult>> {
-        let handle = unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_CommitPublishedFileUpdate(
-                self.storage.pointer.as_ptr(),
-                self.handle,
-            )
-        };
+        let handle = self.native.commit();
         (handle != 0).then_some(PendingCall {
             runtime: self.storage.runtime,
             handle,

@@ -24,9 +24,8 @@ impl RemoteStorage<'_> {
 
         let mut bytes = try_reserve_exact(size as usize).ok_or(CallError::Allocation)?;
 
-        let storage = self.pointer.as_ptr();
-        let handle =
-            unsafe { sys::SteamAPI_ISteamRemoteStorage_UGCDownload(storage, content_handle, 0) };
+        let ugc = self.native.ugc(content_handle);
+        let handle = ugc.download();
 
         let download = PendingCall {
             runtime: &mut *self.runtime,
@@ -40,17 +39,9 @@ impl RemoteStorage<'_> {
             return Err(CallError::InvalidResult);
         }
 
-        // Buffer length matches the validated native size; Close releases the read handle.
-        let read = unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_UGCRead(
-                storage,
-                download.handle,
-                bytes.as_mut_ptr().cast(),
-                download.size,
-                0,
-                sys::EUGCReadAction::k_EUGCRead_Close,
-            )
-        };
+        let read = ugc
+            .read(&mut bytes, 0, sys::EUGCReadAction::k_EUGCRead_Close)
+            .ok_or(CallError::InvalidResult)?;
         if read != download.size {
             return Err(CallError::InvalidResult);
         }
@@ -92,5 +83,5 @@ impl DownloadResult {
 }
 
 #[cfg(test)]
-#[path = "../tests/features/shared_file/tests.rs"]
+#[path = "../tests/features/ugc/tests.rs"]
 mod tests;

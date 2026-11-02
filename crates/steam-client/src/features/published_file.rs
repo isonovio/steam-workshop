@@ -19,14 +19,7 @@ impl RemoteStorage<'_> {
         item_id: NonZeroU64,
         timeout: Duration,
     ) -> Result<PublishedFileDetails, CallError> {
-        // The storage borrow keeps the interface alive through completion.
-        let handle = unsafe {
-            sys::SteamAPI_ISteamRemoteStorage_GetPublishedFileDetails(
-                self.pointer.as_ptr(),
-                item_id.get(),
-                0,
-            )
-        };
+        let handle = self.native.published_file(item_id.get()).get_details();
         let item = PendingCall {
             runtime: self.runtime,
             handle,

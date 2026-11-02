@@ -2,6 +2,8 @@ use std::ffi::CString;
 
 use thiserror::Error;
 
+use crate::utils::try_reserve_exact;
+
 use super::{MAX_UPLOAD_SIZE, RemoteStorage};
 
 pub struct CloudFile<'session> {
@@ -36,11 +38,12 @@ impl<'session> CloudFile<'session> {
         if bytes.len() > MAX_UPLOAD_SIZE {
             return Err(CreateFileError::TooLarge);
         }
-        if storage.exists(&name_cstr) {
+        let file = storage.native.file(&name_cstr);
+        if file.exists() {
             return Err(CreateFileError::AlreadyExists);
         }
-        if !storage.write(&name_cstr, bytes) {
-            if storage.exists(&name_cstr) && !storage.delete(&name_cstr) {
+        if !file.write(bytes) {
+            if file.exists() && !file.delete() {
                 return Err(CreateFileError::Cleanup {
                     filename: name.to_owned(),
                 });
@@ -67,13 +70,18 @@ impl<'session> CloudFile<'session> {
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {
-        self.storage.read(&self.name_cstr)
+        let file = self.storage.native.file(&self.name_cstr);
+        file.exists().then_some(())?;
+        let size: usize = file.get_size().try_into().ok()?;
+        let mut buffer = try_reserve_exact(size)?;
+        let read = file.read(&mut buffer)?;
+        (read == size as i32).then_some(buffer)
     }
 
     /// Consumes the file on success; returns ownership if Steam refuses deletion.
     pub fn delete(self) -> Result<(), Self> {
         // The owned storage keeps the session alive during deletion.
-        match self.storage.delete(&self.name_cstr) {
+        match self.storage.native.file(&self.name_cstr).delete() {
             true => Ok(()),
             false => Err(self),
         }

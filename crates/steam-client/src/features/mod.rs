@@ -4,7 +4,7 @@ mod published_file;
 mod published_update;
 mod remote_storage;
 mod results;
-mod shared_file;
+mod ugc;
 
 pub use cloud_file::{CloudFile, CreateFileError};
 pub use remote_storage::{MAX_UPLOAD_SIZE, RemoteStorage};

@@ -39,12 +39,12 @@ fn live_owned_file() {
     assert_eq!(file.retain(), name);
     let storage = session.remote_storage().unwrap();
     let native_name = to_filename(&name).unwrap();
-    assert!(storage.exists(&native_name));
-    assert!(storage.delete(&native_name));
+    assert!(storage.native.file(&native_name).exists());
+    assert!(storage.native.file(&native_name).delete());
     let mut file = CloudFile::new(session.remote_storage().unwrap(), &name, payload).unwrap();
     file.with_storage(|storage, name| {
         let name = to_filename(name).unwrap();
-        assert!(storage.delete(&name));
+        assert!(storage.native.file(&name).delete());
     });
     let file = match file.delete() {
         Ok(()) => panic!("deleting missing file unexpectedly succeeded"),
@@ -69,8 +69,7 @@ fn live_rejected_writes_and_invalid_names() {
     );
     let native_name = to_filename(&name).unwrap();
     let storage = session.remote_storage().unwrap();
-    assert!(!storage.exists(&native_name));
-    assert_eq!(storage.read(&native_name), None);
+    assert!(!storage.native.file(&native_name).exists());
 
     assert!(matches!(
         CloudFile::new(storage, &name, b""),
@@ -78,6 +77,5 @@ fn live_rejected_writes_and_invalid_names() {
     ));
 
     let storage = session.remote_storage().unwrap();
-    assert!(!storage.exists(&native_name));
-    assert_eq!(storage.read(&native_name), None);
+    assert!(!storage.native.file(&native_name).exists());
 }
