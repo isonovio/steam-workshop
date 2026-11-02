@@ -2,7 +2,7 @@ Resources can coexist while execution access is held, and pass through ordinary 
 
 ```no_run
 use steam_client::{CloudFile, Executor, RemoteStorage, Session};
-fn resources(storage: RemoteStorage<'_>, executor: &mut Executor<'_>) {
+fn resources(storage: RemoteStorage<'_, '_>, executor: &mut Executor<'_>) {
     let first = CloudFile::new(storage, "first", b"first").unwrap();
     let second = CloudFile::new(storage, "second", b"second").unwrap();
     assert!(first.read().is_some());
@@ -13,7 +13,7 @@ fn resources(storage: RemoteStorage<'_>, executor: &mut Executor<'_>) {
 }
 fn run(session: &mut Session) {
     let (steam, mut executor) = session.access();
-    resources(steam.remote_storage().unwrap(), &mut executor);
+    steam.remote_storage(|storage| resources(storage, &mut executor)).unwrap();
 }
 ```
 
@@ -37,6 +37,6 @@ fn escape(mut session: Session) {
     let (steam, executor) = session.access();
     drop(executor);
     drop(session);
-    let _ = steam.remote_storage().unwrap();
+    let _ = steam.remote_storage(|_| ()).unwrap();
 }
 ```

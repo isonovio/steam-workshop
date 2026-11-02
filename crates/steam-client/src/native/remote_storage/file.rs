@@ -1,17 +1,21 @@
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 use steamworks::sys;
 
 use super::RemoteStorage;
 
-pub(crate) struct File<'runtime, 'name> {
+pub(crate) struct File<'runtime> {
     storage: RemoteStorage<'runtime>,
-    name: &'name CStr,
+    name: CString,
 }
 
-impl<'runtime, 'name> File<'runtime, 'name> {
-    pub(super) fn new(storage: RemoteStorage<'runtime>, name: &'name CStr) -> Self {
+impl<'runtime> File<'runtime> {
+    pub(super) fn new(storage: RemoteStorage<'runtime>, name: CString) -> Self {
         Self { storage, name }
+    }
+
+    pub(crate) fn name(&self) -> &CStr {
+        &self.name
     }
 
     pub(crate) fn exists(&self) -> bool {

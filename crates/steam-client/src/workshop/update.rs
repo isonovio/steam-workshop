@@ -1,15 +1,11 @@
-use std::ffi::CString;
 use std::num::NonZeroU64;
 use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
-use crate::{CallError, CloudError, CloudOperation, MAX_UPLOAD_SIZE, RemoteStorage, WorkshopItem};
+use crate::{CallError, CloudError, CloudFile, MAX_UPLOAD_SIZE, WorkshopItem};
 
-use crate::steam::{Executor, PendingCall};
-
-use crate::features::{CommitResult, PublishedUpdate};
-
+use super::staging::{finish, temporary_filename};
 use super::{UpdateResult, Workshop};
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -35,18 +31,16 @@ impl Workshop<'_> {
     ) -> Result<UpdateResult, UpdateError> {
         let start = Instant::now();
         self.validate_update(item_id, bytes, timeout)?;
-        let needs_legal_agreement =
-            self.with_temporary_cloud_file(bytes, |storage, filename, executor| {
+        let (steam, mut executor) = self.session.access();
+        let needs_legal_agreement = steam
+            .remote_storage(|storage| {
+                let file = CloudFile::new(storage, &temporary_filename()?, bytes)?;
                 let remaining = timeout.saturating_sub(start.elapsed());
-                if remaining.is_zero() {
-                    return CloudOperation::Complete(Err(CallError::Timeout));
-                }
-                let call = match submit(storage, item_id, filename, executor) {
-                    Ok(call) => call,
-                    Err(error) => return CloudOperation::Complete(Err(error)),
-                };
-                completion(call.wait(remaining), item_id)
-            })?;
+                let published_file = storage.published_file(item_id);
+                let outcome = published_file.update_with(file, &mut executor, remaining);
+                finish(outcome)
+            })
+            .ok_or(CloudError::Unavailable)??;
         Ok(UpdateResult {
             item_id: item_id.get(),
             needs_legal_agreement,
@@ -65,33 +59,6 @@ impl Workshop<'_> {
         let item = self.inspect(item_id, timeout)?;
         item.validate_update(self.session.app_id(), self.session.user_id())?;
         Ok(item)
-    }
-}
-
-fn submit<'a, 'session>(
-    storage: RemoteStorage<'session>,
-    item_id: NonZeroU64,
-    filename: &str,
-    executor: &'a mut Executor<'session>,
-) -> Result<PendingCall<'a, 'session, CommitResult>, CallError> {
-    let filename = CString::new(filename).map_err(|_| CallError::InvalidResult)?;
-    let mut update = PublishedUpdate::new(storage, item_id).ok_or(CallError::InvalidHandle)?;
-    if !update.set_file(&filename) {
-        return Err(CallError::InvalidResult);
-    }
-    update.commit(executor).ok_or(CallError::InvalidHandle)
-}
-
-fn completion(
-    result: Result<CommitResult, CallError>,
-    item_id: NonZeroU64,
-) -> CloudOperation<bool> {
-    match result {
-        Ok(result) if result.item_id == item_id.get() => {
-            CloudOperation::Complete(result.result.map_err(CallError::from))
-        }
-        Ok(_) => CloudOperation::Uncertain(CallError::InvalidResult),
-        Err(error) => CloudOperation::Uncertain(error),
     }
 }
 

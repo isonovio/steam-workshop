@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::{CallError, WorkshopItem};
 
-use crate::features::{PublishedFileDetails, PublishedFileVisibility};
+use crate::steam::{PublishedFileDetails, PublishedFileVisibility};
 
 use super::{Visibility, Workshop};
 
@@ -14,10 +14,14 @@ impl Workshop<'_> {
         timeout: Duration,
     ) -> Result<WorkshopItem, CallError> {
         let (steam, mut executor) = self.session.access();
-        let storage = steam.remote_storage().ok_or(CallError::InvalidResult)?;
-        storage
-            .published_file_details(item_id, timeout, &mut executor)
-            .map(WorkshopItem::from)
+        steam
+            .remote_storage(|storage| {
+                storage
+                    .published_file(item_id)
+                    .get_details(timeout, &mut executor)
+                    .map(WorkshopItem::from)
+            })
+            .ok_or(CallError::InvalidResult)?
     }
 }
 

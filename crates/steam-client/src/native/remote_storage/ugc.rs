@@ -6,14 +6,29 @@ use crate::native::results::DownloadResult;
 
 use super::RemoteStorage;
 
+pub(crate) enum ReadAction {
+    Close,
+}
+
+impl From<ReadAction> for sys::EUGCReadAction {
+    fn from(action: ReadAction) -> Self {
+        match action {
+            ReadAction::Close => Self::k_EUGCRead_Close,
+        }
+    }
+}
+
 pub(crate) struct Ugc<'runtime> {
     storage: RemoteStorage<'runtime>,
     handle: u64,
 }
 
 impl<'runtime> Ugc<'runtime> {
-    pub(super) fn new(storage: RemoteStorage<'runtime>, handle: u64) -> Self {
-        Self { storage, handle }
+    pub(super) fn new(storage: RemoteStorage<'runtime>, handle: u64) -> Option<Self> {
+        if handle == 0 || handle == sys::k_UGCHandleInvalid {
+            return None;
+        }
+        Some(Self { storage, handle })
     }
 
     pub(crate) fn download(&self) -> Option<ApiCall<'runtime, DownloadResult>> {
@@ -32,12 +47,7 @@ impl<'runtime> Ugc<'runtime> {
         )
     }
 
-    pub(crate) fn read(
-        &self,
-        buffer: &mut [u8],
-        offset: u32,
-        action: sys::EUGCReadAction,
-    ) -> Option<i32> {
+    pub(crate) fn read(&self, buffer: &mut [u8], offset: u32, action: ReadAction) -> Option<i32> {
         let size = buffer.len().try_into().ok()?;
         Some(unsafe {
             sys::SteamAPI_ISteamRemoteStorage_UGCRead(
@@ -46,7 +56,7 @@ impl<'runtime> Ugc<'runtime> {
                 buffer.as_mut_ptr().cast(),
                 size,
                 offset,
-                action,
+                action.into(),
             )
         })
     }

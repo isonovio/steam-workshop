@@ -8,13 +8,13 @@ use super::*;
 fn live_legacy_call() {
     let mut session = Session::connect(std::num::NonZeroU32::new(286160).unwrap()).unwrap();
     let (steam, mut executor) = session.access();
-    let storage = steam.remote_storage().unwrap();
-    let result = storage
-        .published_file_details(
-            std::num::NonZeroU64::new(3826709471).unwrap(),
-            Duration::from_secs(30),
-            &mut executor,
-        )
+    let result = steam
+        .remote_storage(|storage| {
+            storage
+                .published_file(std::num::NonZeroU64::new(3826709471).unwrap())
+                .get_details(Duration::from_secs(30), &mut executor)
+                .unwrap()
+        })
         .unwrap();
     assert_eq!(result.id, 3826709471);
 }

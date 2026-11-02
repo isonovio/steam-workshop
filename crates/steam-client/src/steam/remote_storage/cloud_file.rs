@@ -1,15 +1,17 @@
 use std::ffi::CString;
+use std::marker::PhantomData;
 
 use thiserror::Error;
 
+use crate::native::remote_storage::File;
 use crate::utils::try_reserve_exact;
 
 use super::{MAX_UPLOAD_SIZE, RemoteStorage};
 
-pub struct CloudFile<'session> {
-    storage: RemoteStorage<'session>,
+pub struct CloudFile<'session, 'storage> {
+    pub(super) native: File<'session>,
     name: String,
-    name_cstr: CString,
+    _brand: PhantomData<fn(&'storage ()) -> &'storage ()>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -26,10 +28,10 @@ pub enum CreateFileError {
     Cleanup { filename: String },
 }
 
-impl<'session> CloudFile<'session> {
+impl<'session, 'storage> CloudFile<'session, 'storage> {
     /// Creates a new owned file. Steam has no atomic create-if-absent operation.
     pub fn new(
-        storage: RemoteStorage<'session>,
+        storage: RemoteStorage<'session, 'storage>,
         name: &str,
         bytes: &[u8],
     ) -> Result<Self, CreateFileError> {
@@ -38,7 +40,7 @@ impl<'session> CloudFile<'session> {
         if bytes.len() > MAX_UPLOAD_SIZE {
             return Err(CreateFileError::TooLarge);
         }
-        let file = storage.native.file(&name_cstr);
+        let file = storage.native.file(name_cstr);
         if file.exists() {
             return Err(CreateFileError::AlreadyExists);
         }
@@ -52,9 +54,9 @@ impl<'session> CloudFile<'session> {
         }
 
         Ok(Self {
-            storage,
+            native: file,
             name: name.to_owned(),
-            name_cstr,
+            _brand: storage.brand,
         })
     }
 
@@ -63,7 +65,7 @@ impl<'session> CloudFile<'session> {
     }
 
     pub fn read(&self) -> Option<Vec<u8>> {
-        let file = self.storage.native.file(&self.name_cstr);
+        let file = &self.native;
         file.exists().then_some(())?;
         let size: usize = file.get_size().try_into().ok()?;
         let mut buffer = try_reserve_exact(size)?;
@@ -73,8 +75,7 @@ impl<'session> CloudFile<'session> {
 
     /// Consumes the file on success; returns ownership if Steam refuses deletion.
     pub fn delete(self) -> Result<(), Self> {
-        // The owned storage keeps the session alive during deletion.
-        match self.storage.native.file(&self.name_cstr).delete() {
+        match self.native.delete() {
             true => Ok(()),
             false => Err(self),
         }
@@ -94,5 +95,5 @@ fn to_filename(name: &str) -> Option<CString> {
 }
 
 #[cfg(test)]
-#[path = "../tests/features/cloud_file/tests.rs"]
+#[path = "../../tests/steam/remote_storage/cloud_file/tests.rs"]
 mod tests;

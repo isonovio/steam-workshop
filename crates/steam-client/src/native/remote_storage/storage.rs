@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::CString;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
@@ -25,7 +25,7 @@ impl<'runtime> RemoteStorage<'runtime> {
         })
     }
 
-    pub(crate) fn file(self, name: &CStr) -> File<'runtime, '_> {
+    pub(crate) fn file(self, name: CString) -> File<'runtime> {
         File::new(self, name)
     }
 
@@ -33,7 +33,7 @@ impl<'runtime> RemoteStorage<'runtime> {
         PublishedFile::new(self, item_id)
     }
 
-    pub(crate) fn ugc(self, handle: u64) -> Ugc<'runtime> {
+    pub(crate) fn ugc(self, handle: u64) -> Option<Ugc<'runtime>> {
         Ugc::new(self, handle)
     }
 }

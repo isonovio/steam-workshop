@@ -36,7 +36,7 @@ impl<'runtime> PublishedFile<'runtime> {
         )
     }
 
-    pub(crate) fn update(self) -> Option<Update<'runtime>> {
+    pub(crate) fn update(&self) -> Option<Update<'runtime>> {
         Update::new(self.storage, self.item_id)
     }
 }

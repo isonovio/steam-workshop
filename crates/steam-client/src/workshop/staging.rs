@@ -1,15 +1,8 @@
 use thiserror::Error;
 
-use crate::{CallError, CloudFile, CreateFileError, Executor, RemoteStorage};
-
+use crate::steam::UpdateOutcome;
 use crate::utils::random_u128;
-
-use super::Workshop;
-
-pub enum CloudOperation<T> {
-    Complete(Result<T, CallError>),
-    Uncertain(CallError),
-}
+use crate::{CallError, CloudFile, CreateFileError};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CloudError {
@@ -35,65 +28,33 @@ pub enum CloudError {
     },
 }
 
-struct TemporaryCloudFile<'session> {
-    file: CloudFile<'session>,
-}
-
-impl Workshop<'_> {
-    pub fn with_temporary_cloud_file<T>(
-        &mut self,
-        bytes: &[u8],
-        operation: impl for<'runtime> FnOnce(
-            RemoteStorage<'runtime>,
-            &str,
-            &mut Executor<'runtime>,
-        ) -> CloudOperation<T>,
-    ) -> Result<T, CloudError> {
-        let (steam, mut executor) = self.session.access();
-        let storage = steam.remote_storage().ok_or(CloudError::Unavailable)?;
-        let temporary = TemporaryCloudFile::new(storage, bytes)?;
-        let outcome = operation(storage, temporary.file.name(), &mut executor);
-        temporary.finish(outcome)
-    }
-}
-
-impl<'session> TemporaryCloudFile<'session> {
-    fn new(storage: RemoteStorage<'session>, bytes: &[u8]) -> Result<Self, CloudError> {
-        let name = temporary_filename()?;
-        let file = CloudFile::new(storage, &name, bytes)?;
-        Ok(Self { file })
-    }
-
-    fn finish<T>(self, outcome: CloudOperation<T>) -> Result<T, CloudError> {
-        finish(outcome, self.file.name().to_owned(), || {
-            self.file.delete().is_ok()
-        })
-    }
-}
-
-fn temporary_filename() -> Result<String, CloudError> {
+pub(super) fn temporary_filename() -> Result<String, CloudError> {
     let random = random_u128().map_err(|error| CloudError::Random(error.to_string()))?;
     Ok(format!("steam-workshop-{random:032x}.tmp"))
 }
 
-fn finish<T>(
-    outcome: CloudOperation<T>,
-    filename: String,
-    cleanup: impl FnOnce() -> bool,
-) -> Result<T, CloudError> {
-    let result = match outcome {
-        CloudOperation::Complete(result) => result,
-        CloudOperation::Uncertain(source) => {
-            return Err(CloudError::Uncertain { filename, source });
-        }
-    };
-    if !cleanup() {
-        return Err(CloudError::Cleanup {
+pub(super) fn finish(outcome: UpdateOutcome<'_, '_>) -> Result<bool, CloudError> {
+    match outcome {
+        UpdateOutcome::NotSubmitted { file, error } => cleanup(file, Err(error)),
+        UpdateOutcome::Complete { file, result } => cleanup(file, result),
+        UpdateOutcome::Uncertain { filename, error } => Err(CloudError::Uncertain {
             filename,
-            operation: result.err(),
-        });
+            source: error,
+        }),
     }
-    result.map_err(CloudError::Call)
+}
+
+pub(super) fn cleanup(
+    file: CloudFile<'_, '_>,
+    result: Result<bool, CallError>,
+) -> Result<bool, CloudError> {
+    match file.delete() {
+        Ok(()) => result.map_err(CloudError::Call),
+        Err(file) => Err(CloudError::Cleanup {
+            filename: file.retain(),
+            operation: result.err(),
+        }),
+    }
 }
 
 #[cfg(test)]

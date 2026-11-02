@@ -1,5 +1,5 @@
-use crate::features::RemoteStorage;
-use crate::native::Runtime;
+use super::RemoteStorage;
+use crate::native::{Runtime, remote_storage};
 
 #[derive(Clone, Copy)]
 pub struct Access<'runtime> {
@@ -11,7 +11,11 @@ impl<'runtime> Access<'runtime> {
         Self { runtime }
     }
 
-    pub fn remote_storage(self) -> Option<RemoteStorage<'runtime>> {
-        RemoteStorage::new(self.runtime)
+    pub fn remote_storage<T>(
+        self,
+        operation: impl for<'storage> FnOnce(RemoteStorage<'runtime, 'storage>) -> T,
+    ) -> Option<T> {
+        let native = remote_storage::RemoteStorage::new(self.runtime)?;
+        Some(RemoteStorage::scope(native, operation))
     }
 }

@@ -45,3 +45,9 @@ fn ignores_other_calls_and_checks_matching_descriptor() {
         Err(ApiError::InvalidResult)
     );
 }
+
+impl<T> ApiCall<'_, T> {
+    pub(crate) fn unpolled_for_test() -> Self {
+        Self::new(1, 1, 1, |_| panic!("test call must not be decoded")).unwrap()
+    }
+}

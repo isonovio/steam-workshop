@@ -14,12 +14,15 @@ impl Workshop<'_> {
         let start = Instant::now();
         let item = self.inspect(item_id, timeout)?;
         let (steam, mut executor) = self.session.access();
-        let storage = steam.remote_storage().ok_or(CallError::InvalidResult)?;
-        storage.download_content(
-            item.content_handle,
-            item.size,
-            timeout.saturating_sub(start.elapsed()),
-            &mut executor,
-        )
+        steam
+            .remote_storage(|storage| {
+                storage.download_content(
+                    item.content_handle,
+                    item.size,
+                    timeout.saturating_sub(start.elapsed()),
+                    &mut executor,
+                )
+            })
+            .ok_or(CallError::InvalidResult)?
     }
 }

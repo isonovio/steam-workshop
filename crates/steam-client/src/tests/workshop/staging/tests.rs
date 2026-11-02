@@ -1,97 +1,53 @@
-use crate::Session;
-
-use std::cell::Cell;
 use std::num::NonZeroU32;
+
+use crate::Session;
 
 use super::*;
 
 #[test]
-fn cleans_up_after_success_and_failure() {
-    let cleaned = Cell::new(0);
-    let cleanup = || {
-        cleaned.set(cleaned.get() + 1);
-        true
-    };
-    assert_eq!(
-        finish(CloudOperation::Complete(Ok(42)), "test".into(), cleanup).unwrap(),
-        42
-    );
-    assert!(matches!(
-        finish::<()>(
-            CloudOperation::Complete(Err(CallError::Transport)),
-            "test".into(),
-            cleanup
-        ),
-        Err(CloudError::Call(CallError::Transport))
-    ));
-    assert_eq!(cleaned.get(), 2);
-}
-
-#[test]
-fn preserves_cleanup_and_operation_failures() {
-    assert!(matches!(
-        finish(CloudOperation::Complete(Ok(())), "test".into(), || false),
-        Err(CloudError::Cleanup {
-            operation: None,
-            ..
-        })
-    ));
-    assert!(matches!(
-        finish::<()>(
-            CloudOperation::Complete(Err(CallError::Transport)),
-            "test".into(),
-            || false
-        ),
-        Err(CloudError::Cleanup {
-            operation: Some(CallError::Transport),
-            ..
-        })
-    ));
-}
-
-#[test]
-fn timeout_retains_staging_filename_without_cleanup() {
-    let result = finish::<()>(
-        CloudOperation::Uncertain(CallError::Timeout),
-        "retained".into(),
-        || panic!("deleted pending upload"),
-    );
+fn reports_retained_filename() {
     assert!(
-        matches!(result, Err(CloudError::Uncertain { filename, .. }) if filename == "retained")
+        matches!(finish(UpdateOutcome::Uncertain { filename: "retained".into(), error: CallError::Timeout }),
+        Err(CloudError::Uncertain { filename, source: CallError::Timeout }) if filename == "retained")
     );
 }
 
 #[test]
-#[ignore = "writes and deletes isolated test Cloud files; requires SteamAppId/SteamGameId 286160"]
-fn live_temporary_cloud_files() {
+#[ignore = "writes and deletes isolated Cloud files; requires SteamAppId/SteamGameId 286160"]
+fn live_cleanup_outcomes() {
     let mut session = Session::connect(NonZeroU32::new(286160).unwrap()).unwrap();
-    let payload = b"steam-workshop temporary Cloud test";
-    let mut names = Vec::new();
-    for fail in [false, true] {
-        let result = session
-            .workshop()
-            .with_temporary_cloud_file(payload, |_, filename, _| {
-                names.push(filename.to_owned());
-                CloudOperation::Complete(match fail {
-                    false => Ok(()),
-                    true => Err(CallError::InvalidResult),
-                })
-            });
-        match fail {
-            false => result.unwrap(),
-            true => assert!(matches!(
-                result,
-                Err(CloudError::Call(CallError::InvalidResult))
-            )),
-        }
-        let (steam, _) = session.access();
-        let file = CloudFile::new(
-            steam.remote_storage().unwrap(),
-            names.last().unwrap(),
-            payload,
-        )
+    let (steam, _) = session.access();
+    steam
+        .remote_storage(|storage| {
+            for failed_operation in [false, true] {
+                let name = temporary_filename().unwrap();
+                let file = CloudFile::new(storage, &name, b"cleanup").unwrap();
+                let result = match failed_operation {
+                    false => Ok(true),
+                    true => Err(CallError::Transport),
+                };
+                let outcome = finish(UpdateOutcome::Complete { file, result });
+                match failed_operation {
+                    false => assert_eq!(outcome, Ok(true)),
+                    true => assert!(matches!(
+                        outcome,
+                        Err(CloudError::Call(CallError::Transport))
+                    )),
+                }
+                let file = CloudFile::new(storage, &name, b"deleted").unwrap();
+                assert!(file.delete().is_ok());
+            }
+            for failed_operation in [false, true] {
+                let name = temporary_filename().unwrap();
+                let file = CloudFile::new(storage, &name, b"cleanup failure").unwrap();
+                assert!(file.simulate_external_deletion());
+                let result = match failed_operation {
+                    false => Ok(false),
+                    true => Err(CallError::Transport),
+                };
+                assert!(matches!(cleanup(file, result), Err(CloudError::Cleanup { filename, operation })
+                    if filename == name && operation == failed_operation.then_some(CallError::Transport)));
+            }
+        })
         .unwrap();
-        assert!(file.delete().is_ok());
-    }
-    assert_ne!(names[0], names[1]);
 }
