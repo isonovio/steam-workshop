@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v5
+      - name: Check release version
+        id: version
+        run: python scripts/publish.py prepare
+      - name: Check Rust
+        if: steps.version.outputs.pending == 'true'
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test --workspace --locked
+      - name: Package macOS ARM64
+        if: steps.version.outputs.pending == 'true'
+        run: python scripts/package-macos.py
+      - name: Publish release
+        if: steps.version.outputs.pending == 'true'
+        run: python scripts/publish.py publish

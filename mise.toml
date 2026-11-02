@@ -1,2 +1,8 @@
 [tools]
+python = "latest"
 rust = { version = "nightly", components = ["rust-src", "rust-analyzer"] }
+
+[tasks.bump]
+raw = true
+description = "Bump the CLI version and compose release notes with $EDITOR"
+run = "python scripts/bump-version.py"
