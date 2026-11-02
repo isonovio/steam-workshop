@@ -40,7 +40,7 @@ fn decodes_native_layout_and_unicode() {
     assert_eq!(item.id, 3826709471);
     assert_eq!(item.consumer_app_id, 286160);
     assert_eq!(item.title, "Test 模组");
-    assert_eq!(item.visibility, Visibility::Private);
+    assert_eq!(item.visibility, PublishedFileVisibility::Private);
 }
 
 #[test]

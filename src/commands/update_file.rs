@@ -14,20 +14,20 @@ pub fn command(app_id: NonZeroU32, item_id: NonZeroU64, file: &Path) -> i32 {
 
 fn update_file(session: &mut Session, item_id: NonZeroU64, path: &Path) -> Result<(), io::Error> {
     let bytes = read_input(path)?;
-    let item = session
+    let result = session
         .workshop()
-        .validate_update(item_id, &bytes, Duration::from_secs(30))
+        .update_file(item_id, &bytes, Duration::from_secs(300))
         .map_err(io::Error::other)?;
-    println!(
-        "Validated {} bytes for item {} ({:?})",
-        bytes.len(),
-        item.id,
-        item.title
-    );
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "Publishing is not implemented yet",
-    ))
+    match result.needs_legal_agreement {
+        true => println!(
+            "Uploaded {} bytes to item {}; accept the Workshop legal agreement at https://steamcommunity.com/sharedfiles/filedetails/?id={}",
+            bytes.len(),
+            result.item_id,
+            result.item_id
+        ),
+        false => println!("Updated item {} with {} bytes", result.item_id, bytes.len()),
+    }
+    Ok(())
 }
 
 fn read_input(path: &Path) -> Result<Vec<u8>, io::Error> {

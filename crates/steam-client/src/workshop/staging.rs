@@ -11,7 +11,7 @@ pub enum CloudOperation<T> {
     Uncertain(CallError),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum CloudError {
     #[error("Unable to generate temporary filename: {0}")]
     Random(String),

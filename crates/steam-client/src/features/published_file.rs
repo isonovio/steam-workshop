@@ -5,10 +5,11 @@ use std::time::Duration;
 
 use steamworks::{SteamError, sys};
 
+use crate::utils::native::field;
+
 use super::RemoteStorage;
 use super::callbacks::{CallError, PendingCall};
-use crate::utils::native::field;
-use crate::{Visibility, WorkshopItem};
+use super::results::{PublishedFileDetails, PublishedFileVisibility};
 
 type Details = sys::RemoteStorageGetPublishedFileDetailsResult_t;
 
@@ -17,7 +18,7 @@ impl RemoteStorage<'_> {
         self,
         item_id: NonZeroU64,
         timeout: Duration,
-    ) -> Result<WorkshopItem, CallError> {
+    ) -> Result<PublishedFileDetails, CallError> {
         // The storage borrow keeps the interface alive through completion.
         let handle = unsafe {
             sys::SteamAPI_ISteamRemoteStorage_GetPublishedFileDetails(
@@ -41,7 +42,7 @@ impl RemoteStorage<'_> {
     }
 }
 
-fn decode(bytes: &[u8]) -> Result<WorkshopItem, CallError> {
+fn decode(bytes: &[u8]) -> Result<PublishedFileDetails, CallError> {
     let bytes: &[u8; size_of::<Details>()] = match bytes.try_into() {
         Ok(bytes) => bytes,
         Err(_) => return Err(CallError::InvalidResult),
@@ -55,10 +56,10 @@ fn decode(bytes: &[u8]) -> Result<WorkshopItem, CallError> {
         });
     }
 
-    WorkshopItem::from_bytes(bytes).ok_or(CallError::InvalidResult)
+    PublishedFileDetails::from_bytes(bytes).ok_or(CallError::InvalidResult)
 }
 
-impl Visibility {
+impl PublishedFileVisibility {
     pub(crate) fn from_repr(value: u32) -> Option<Self> {
         match value {
             0 => Some(Self::Public),
@@ -70,7 +71,7 @@ impl Visibility {
     }
 }
 
-impl WorkshopItem {
+impl PublishedFileDetails {
     pub(crate) fn from_bytes(bytes: &[u8; size_of::<Details>()]) -> Option<Self> {
         // Read primitive fields without constructing native enums or packed references.
         let size = i32::from_ne_bytes(field(bytes, offset_of!(Details, m_nFileSize)));
@@ -88,7 +89,7 @@ impl WorkshopItem {
             filename: text(bytes, offset_of!(Details, m_pchFileName), 260)?,
             size: size.try_into().ok()?,
             updated_at: u32::from_ne_bytes(field(bytes, offset_of!(Details, m_rtimeUpdated))),
-            visibility: Visibility::from_repr(visibility)?,
+            visibility: PublishedFileVisibility::from_repr(visibility)?,
         })
     }
 }

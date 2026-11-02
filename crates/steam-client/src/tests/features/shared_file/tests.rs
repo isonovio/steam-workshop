@@ -1,12 +1,12 @@
 use super::*;
 
 fn result(status: i32, size: i32) -> Vec<u8> {
-    let mut bytes = vec![0; size_of::<DownloadResult>()];
-    let offset = offset_of!(DownloadResult, m_eResult);
+    let mut bytes = vec![0; size_of::<NativeDownloadResult>()];
+    let offset = offset_of!(NativeDownloadResult, m_eResult);
     bytes[offset..offset + 4].copy_from_slice(&status.to_ne_bytes());
-    let offset = offset_of!(DownloadResult, m_nSizeInBytes);
+    let offset = offset_of!(NativeDownloadResult, m_nSizeInBytes);
     bytes[offset..offset + 4].copy_from_slice(&size.to_ne_bytes());
-    let offset = offset_of!(DownloadResult, m_hFile);
+    let offset = offset_of!(NativeDownloadResult, m_hFile);
     bytes[offset..offset + 8].copy_from_slice(&42_u64.to_ne_bytes());
     bytes
 }

@@ -6,6 +6,6 @@ mod staging;
 mod update;
 
 pub use client::Workshop;
-pub use models::{Visibility, WorkshopItem};
+pub use models::{UpdateResult, Visibility, WorkshopItem};
 pub use staging::{CloudError, CloudOperation};
 pub use update::UpdateError;
